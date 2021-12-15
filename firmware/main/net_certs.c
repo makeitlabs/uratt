@@ -13,7 +13,6 @@ char* g_ca_cert = NULL;
 
 static const char *TAG = "net_certs";
 
-
 esp_err_t net_certs_load(char* filename, char** buf)
 {
   struct stat st;
@@ -64,6 +63,7 @@ esp_err_t net_certs_init()
   }
 
   if (g_ca_cert == NULL || g_client_cert == NULL || g_client_key == NULL) {
+    ESP_LOGE(TAG, "One or more certificates failed to load!");
     return -1;
   }
 
