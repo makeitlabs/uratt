@@ -42,9 +42,11 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
+#include "esp_wifi_default.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_netif.h"
 #include "https.h"
 #include "sdcard.h"
 
@@ -78,17 +80,13 @@ static const char *TAG = "net_task";
 
 void net_timer(TimerHandle_t xTimer);
 
-// The examples use simple configurations that you can set via 'make menuconfig'.
-#define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
-#define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
 
-// FreeRTOS event group to signal when we are connected & ready to make a request
-static EventGroupHandle_t wifi_event_group;
+#define NR_OF_IP_ADDRESSES_TO_WAIT_FOR (s_active_interfaces)
 
-// The event group allows multiple bits for each event,
-// but we only care about one event - are we connected
-// to the AP with an IP?
-const int CONNECTED_BIT = BIT0;
+static int s_active_interfaces = 0;
+static xSemaphoreHandle s_semph_get_ip_addrs;
+static esp_netif_t *s_example_esp_netif = NULL;
+
 
 
 #define NET_QUEUE_DEPTH 16
@@ -106,40 +104,185 @@ typedef struct net_evt {
 static QueueHandle_t m_q;
 
 uint8_t g_mac_addr[6];
+static esp_ip4_addr_t s_ip_addr;
 
 
-
-static esp_err_t event_handler(void *ctx, system_event_t *event)
+/**
+ * @brief Checks the netif description if it contains specified prefix.
+ * All netifs created withing common connect component are prefixed with the module TAG,
+ * so it returns true if the specified netif is owned by this module
+ */
+static bool is_our_netif(const char *prefix, esp_netif_t *netif)
 {
-    char s[32];
-    const ip4_addr_t* ip;
+    return strncmp(prefix, esp_netif_get_desc(netif), strlen(prefix) - 1) == 0;
+}
 
-    switch(event->event_id) {
-    case SYSTEM_EVENT_WIFI_READY:
-        display_wifi_msg("WIFI READY");
-        break;
-    case SYSTEM_EVENT_STA_START:
-        display_wifi_msg("WIFI CONNECT");
-        esp_wifi_connect();
-        break;
-    case SYSTEM_EVENT_STA_GOT_IP:
-        ip = &event->event_info.got_ip.ip_info.ip;
-        snprintf(s, sizeof(s), "%d.%d.%d.%d", ip4_addr1_16(ip), ip4_addr2_16(ip), ip4_addr3_16(ip), ip4_addr4_16(ip));
-        display_wifi_msg(s);
+esp_netif_t *get_netif(void)
+{
+    return s_example_esp_netif;
+}
 
-        xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-        /* This is a workaround as ESP32 WiFi libs don't currently
-           auto-reassociate. */
-        display_wifi_msg("WIFI DISCON");
-
-        esp_wifi_connect();
-        xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-        break;
-    default:
-        break;
+esp_netif_t *get_netif_from_desc(const char *desc)
+{
+    esp_netif_t *netif = NULL;
+    char *expected_desc;
+    asprintf(&expected_desc, "%s: %s", TAG, desc);
+    while ((netif = esp_netif_next(netif)) != NULL) {
+        if (strcmp(esp_netif_get_desc(netif), expected_desc) == 0) {
+            free(expected_desc);
+            return netif;
+        }
     }
+    free(expected_desc);
+    return netif;
+}
+
+
+static void on_got_ip(void *arg, esp_event_base_t event_base,
+                      int32_t event_id, void *event_data)
+{
+  ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+  if (!is_our_netif(TAG, event->esp_netif)) {
+      ESP_LOGW(TAG, "Got IPv4 from another interface \"%s\": ignored", esp_netif_get_desc(event->esp_netif));
+      return;
+  }
+  ESP_LOGI(TAG, "Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
+  memcpy(&s_ip_addr, &event->ip_info.ip, sizeof(s_ip_addr));
+  xSemaphoreGive(s_semph_get_ip_addrs);
+
+  char s[32];
+  snprintf(s, sizeof(s), IPSTR, IP2STR(&event->ip_info.ip));
+  display_wifi_msg(s);
+
+  net_cmd_queue(NET_CMD_INIT);
+}
+
+static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data)
+{
+    ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
+
+    display_wifi_msg("WIFI RECON");
+
+    esp_err_t err = esp_wifi_connect();
+    if (err == ESP_ERR_WIFI_NOT_STARTED) {
+        return;
+    }
+    ESP_ERROR_CHECK(err);
+}
+
+static esp_netif_t *net_wifi_start(void)
+{
+    char *desc;
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
+
+    // Prefix the interface description with the module TAG
+    // Warning: the interface desc is used in tests to capture actual connection details (IP, gw, mask)
+    asprintf(&desc, "%s: %s", TAG, esp_netif_config.if_desc);
+    esp_netif_config.if_desc = desc;
+    esp_netif_config.route_prio = 128;
+    esp_netif_t *netif = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
+    free(desc);
+    esp_wifi_set_default_wifi_sta_handlers();
+
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));
+
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = CONFIG_WIFI_SSID,
+            .password = CONFIG_WIFI_PASSWORD,
+            .scan_method = WIFI_FAST_SCAN,
+            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+            .threshold.rssi = -127,
+            .threshold.authmode = WIFI_AUTH_WPA_PSK,
+        },
+    };
+
+    ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_connect();
+    return netif;
+}
+
+static void net_wifi_stop(void)
+{
+    esp_netif_t *wifi_netif = get_netif_from_desc("sta");
+    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &on_wifi_disconnect));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip));
+    esp_err_t err = esp_wifi_stop();
+    if (err == ESP_ERR_WIFI_NOT_INIT) {
+        return;
+    }
+    ESP_ERROR_CHECK(err);
+    ESP_ERROR_CHECK(esp_wifi_deinit());
+    ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(wifi_netif));
+    esp_netif_destroy(wifi_netif);
+    s_example_esp_netif = NULL;
+}
+
+
+
+
+static void net_start(void)
+{
+    s_example_esp_netif = net_wifi_start();
+    s_active_interfaces++;
+    /* create semaphore if at least one interface is active */
+    s_semph_get_ip_addrs = xSemaphoreCreateCounting(NR_OF_IP_ADDRESSES_TO_WAIT_FOR, 0);
+}
+
+static void net_stop(void)
+{
+    net_wifi_stop();
+    s_active_interfaces--;
+}
+
+
+esp_err_t net_connect(void)
+{
+    if (s_semph_get_ip_addrs != NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    display_net_msg("WIFI CONNECT");
+
+    net_start();
+    ESP_ERROR_CHECK(esp_register_shutdown_handler(&net_stop));
+    ESP_LOGI(TAG, "Waiting for IP(s)");
+    for (int i = 0; i < NR_OF_IP_ADDRESSES_TO_WAIT_FOR; ++i) {
+        xSemaphoreTake(s_semph_get_ip_addrs, portMAX_DELAY);
+    }
+    // iterate over active interfaces, and print out IPs of "our" netifs
+    esp_netif_t *netif = NULL;
+    esp_netif_ip_info_t ip;
+    for (int i = 0; i < esp_netif_get_nr_of_ifs(); ++i) {
+        netif = esp_netif_next(netif);
+        if (is_our_netif(TAG, netif)) {
+            ESP_LOGI(TAG, "Connected to %s", esp_netif_get_desc(netif));
+            ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip));
+
+            ESP_LOGI(TAG, "- IPv4 address: " IPSTR, IP2STR(&ip.ip));
+        }
+    }
+    return ESP_OK;
+}
+
+esp_err_t net_disconnect(void)
+{
+    if (s_semph_get_ip_addrs == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    vSemaphoreDelete(s_semph_get_ip_addrs);
+    s_semph_get_ip_addrs = NULL;
+    net_stop();
+    ESP_ERROR_CHECK(esp_unregister_shutdown_handler(&net_stop));
     return ESP_OK;
 }
 
@@ -168,46 +311,22 @@ BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 
-
 void net_init(void)
 {
-    char s[32];
+    ESP_LOGI(TAG, "Initializing network task...");
 
-    ESP_LOGI(TAG, "Initializing network...");
+    display_net_msg("WIFI INIT");
 
     m_q = xQueueCreate(NET_QUEUE_DEPTH, sizeof(net_evt_t));
     if (m_q == NULL) {
         ESP_LOGE(TAG, "FATAL: Cannot create net queue!");
     }
 
-    display_net_msg("WIFI INIT");
-
-    tcpip_adapter_init();
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = EXAMPLE_WIFI_SSID,
-            .password = EXAMPLE_WIFI_PASS,
-        },
-    };
-
-    snprintf(s, sizeof(s), "%s", wifi_config.sta.ssid);
-    display_net_msg(s);
-
-    ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-
     // get MAC address from efuse
     esp_efuse_mac_get_default(g_mac_addr);
+    ESP_LOGI(TAG, "My mac adddress is %2x%2x%2x%2x%2x%2x", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
 
     TimerHandle_t timer = xTimerCreate("rssi_timer", (1000 / portTICK_PERIOD_MS), pdTRUE, (void*) 0, net_timer);
-
     if (xTimerStart(timer, 0) != pdPASS) {
         ESP_LOGE(TAG, "Could not start net timer");
     }
@@ -224,29 +343,31 @@ void net_task(void *pvParameters)
     ESP_LOGI(TAG, "start net task");
     net_init();
 
-    // queue some initial commands
-    net_cmd_queue(NET_CMD_NTP_SYNC);
-    net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
-    //net_cmd_queue(NET_CMD_OTA_UPDATE);
-
-    display_net_msg("WIFI CONNECT");
-    // Wait for the callback to set the CONNECTED_BIT in the event group.
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
-    ESP_LOGI(TAG, "Connected to AP...");
-
-    net_mqtt_start();
-
     while(1) {
       net_evt_t evt;
 
       if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
         switch(evt.cmd) {
+          case NET_CMD_INIT:
+            net_mqtt_start();
+            net_cmd_queue(NET_CMD_NTP_SYNC);
+            net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+            //net_cmd_queue(NET_CMD_OTA_UPDATE);
+            break;
+
+          case NET_CMD_DISCONNECT:
+            net_mqtt_stop();
+            net_disconnect();
+            break;
+
+          case NET_CMD_CONNECT:
+            net_connect();
+            break;
+
           case NET_CMD_DOWNLOAD_ACL:
             {
               uint32_t start = esp_log_timestamp();
-
               net_https_download_acl();
-
               ESP_LOGW(TAG, "download took %d", esp_log_timestamp() - start);
             }
             break;

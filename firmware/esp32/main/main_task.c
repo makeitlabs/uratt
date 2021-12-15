@@ -149,6 +149,7 @@ void main_task(void *pvParameters)
       break;
 
     case STATE_START_RFID_READ:
+      net_cmd_queue(NET_CMD_CONNECT);
       display_clear_msg();
       state = STATE_WAIT_RFID;
       break;

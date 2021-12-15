@@ -49,6 +49,8 @@
 #include "esp_sleep.h"
 #include "lcd_st7735.h"
 #include "display_task.h"
+#include "net_task.h"
+
 static const char *TAG = "system_task";
 
 #define SYSTEM_QUEUE_DEPTH 8
@@ -139,11 +141,12 @@ void system_task(void *pvParameters)
     }
 
     if (pwr_loss == 0) {
+        time_t lost = (now - last_time_pwr_loss);
 
-        if ((now - last_time_pwr_loss) >= 15) {
+        if (lost >= 10) {
           ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
-          last_time_pwr_loss = now;
-
+          net_cmd_queue(NET_CMD_DISCONNECT);
+          taskYIELD();
 
           ESP_LOGI(TAG, "going to sleep");
 
@@ -157,8 +160,8 @@ void system_task(void *pvParameters)
           lcd_reset();
           lcd_set_backlight(OFF);
 
-          esp_light_sleep_start();
 
+          esp_light_sleep_start();
 
           ESP_LOGI(TAG, "waking up");
 
@@ -170,6 +173,9 @@ void system_task(void *pvParameters)
           display_redraw_bg();
           lcd_set_backlight(ON);
 
+          net_cmd_queue(NET_CMD_CONNECT);
+
+          last_time_pwr_loss = now;
         }
     }
 

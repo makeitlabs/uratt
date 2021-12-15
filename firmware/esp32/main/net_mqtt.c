@@ -83,10 +83,6 @@ extern const uint8_t ca_cert_pem_end[] asm("_binary_ca_crt_end");
 
 esp_mqtt_client_handle_t mqtt_client;
 
-
-
-
-
 int net_mqtt_topic_targeted(char *topic_type, char *subtopic, char *obuf, size_t obuf_len)
 {
   return snprintf(obuf, obuf_len, "%s/%s/node/%02x%02x%02x%02x%02x%02x/%s",
@@ -243,11 +239,15 @@ int net_mqtt_init(void)
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
 
-
   return 0;
 }
 
 int net_mqtt_start(void)
 {
   return esp_mqtt_client_start(mqtt_client);
+}
+
+int net_mqtt_stop(void)
+{
+  return esp_mqtt_client_stop(mqtt_client);
 }
