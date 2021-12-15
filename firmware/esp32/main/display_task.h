@@ -46,6 +46,7 @@ BaseType_t display_net_msg(char *msg);
 BaseType_t display_user_msg(char *msg);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
 BaseType_t display_clear_msg();
+BaseType_t display_redraw_bg();
 
 
 #endif

@@ -232,7 +232,7 @@ int net_mqtt_init(void)
   esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
 
   const esp_mqtt_client_config_t mqtt_cfg = {
-      .uri = "mqtts://192.168.0.153:21883",
+      .uri = "mqtts://auth.makeitlabs.com:21883",
       .event_handle = net_mqtt_event_handler,
       .client_cert_pem = (const char *)client_cert_pem_start,
       .client_key_pem = (const char *)client_key_pem_start,

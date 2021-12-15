@@ -244,7 +244,7 @@ void lcd_hw_init(void)
     gpio_config_t bckl_cfg = {
         .pin_bit_mask = GPIO_SEL_LCD_BCKL,
         .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE
     };
@@ -265,21 +265,25 @@ void lcd_hw_init(void)
     // Initialize the other GPIO
     gpio_set_direction(GPIO_PIN_LCD_CS, GPIO_MODE_OUTPUT);
 
-    ESP_LOGI(TAG, "Resetting display...");
-
-    // Reset the display
-    // toggle RST low to reset with CS low
-    gpio_set_level(GPIO_PIN_LCD_CS, 0);
-
-    gpio_set_level(GPIO_PIN_LCD_RESET, 1);
-    delay(50);
-    gpio_set_level(GPIO_PIN_LCD_RESET, 0);
-    delay(50);
-    gpio_set_level(GPIO_PIN_LCD_RESET, 1);
-    delay(50);
-    gpio_set_level(GPIO_PIN_LCD_CS, 1);
+    lcd_reset();
 
     ESP_LOGI(TAG, "LCD hardware initialized");
+}
+
+void lcd_reset(void)
+{
+  ESP_LOGI(TAG, "Resetting display...");
+  // Reset the display
+  // toggle RST low to reset with CS low
+  gpio_set_level(GPIO_PIN_LCD_CS, 0);
+
+  gpio_set_level(GPIO_PIN_LCD_RESET, 1);
+  delay(50);
+  gpio_set_level(GPIO_PIN_LCD_RESET, 0);
+  delay(50);
+  gpio_set_level(GPIO_PIN_LCD_RESET, 1);
+  delay(50);
+  gpio_set_level(GPIO_PIN_LCD_CS, 1);
 }
 
 void lcd_init(void)
@@ -310,13 +314,7 @@ void lcd_init(void)
 
     ESP_LOGI(TAG, "Initializing LCD...");
 
-    // init LCD
-    //lcd_initB();
-    lcd_initR(INITR_MINI160x80);
-    invertDisplay(1);
-
-    // set rotation
-    lcd_set_rotation(3);
+    lcd_reinit();
 
     // init gfx routines
     gfx_set_text_wrap(1);
@@ -333,6 +331,16 @@ void lcd_init(void)
     ESP_LOGI(TAG, "LCD Init complete, width=%d height=%d, frame buffer size=%zu", _width, _height, m_frame_buf_size);
 }
 
+
+void lcd_reinit(void)
+{
+  // init LCD
+  lcd_initR(INITR_MINI160x80);
+  invertDisplay(1);
+
+  // set rotation
+  lcd_set_rotation(3);
+}
 
 void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
 {
@@ -405,8 +413,12 @@ void lcd_init_common(const uint8_t *cmdList)
 
   if(cmdList) lcd_init_cmds(cmdList);
 
-  // Enable backlight
-  gpio_set_level(GPIO_PIN_LCD_BCKL, 1);
+  lcd_set_backlight(1);
+}
+
+void lcd_set_backlight(uint8_t en)
+{
+  gpio_set_level(GPIO_PIN_LCD_BCKL, en ? 0 : 1);
 }
 
 // Initialization for ST7735B screens

@@ -63,7 +63,8 @@ typedef enum {
     DISP_CMD_NET_MSG,
     DISP_CMD_ALLOWED_MSG,
     DISP_CMD_USER_MSG,
-    DISP_CMD_CLEAR_MSG
+    DISP_CMD_CLEAR_MSG,
+    DISP_CMD_REDRAW_BG
 } display_cmd_t;
 
 typedef struct display_evt {
@@ -130,6 +131,14 @@ BaseType_t display_clear_msg()
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 
+BaseType_t display_redraw_bg()
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_REDRAW_BG;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+
+
 void display_init()
 {
     gpio_set_direction(GPIO_PIN_FP_BUTTON, GPIO_MODE_INPUT);
@@ -142,6 +151,21 @@ void display_init()
 
 }
 
+void display_init_bg(void)
+{
+  lcd_fill_screen(lcd_rgb(0x00, 0x00, 0xC0));
+  lcd_fill_rect(0, 0, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
+  lcd_fill_rect(0, 17, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
+
+  lcd_fill_rect(0, 63, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
+  lcd_fill_rect(0, 64, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
+
+  gfx_set_font(&Atari8);
+  gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
+  gfx_write_string(0, 64, "RSSI");
+  gfx_refresh();
+}
+
 void display_task(void *pvParameters)
 {
     uint8_t spin_idx = 0;
@@ -151,17 +175,7 @@ void display_task(void *pvParameters)
     last_heartbeat_tick = xTaskGetTickCount();
 
     lcd_init();
-    lcd_fill_screen(lcd_rgb(0x00, 0x00, 0xC0));
-    lcd_fill_rect(0, 0, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
-    lcd_fill_rect(0, 17, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
-
-    lcd_fill_rect(0, 63, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
-    lcd_fill_rect(0, 64, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
-
-    gfx_set_font(&Atari8);
-    gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
-    gfx_write_string(0, 64, "RSSI");
-    gfx_refresh();
+    display_init_bg();
 
     int button=0, last_button=0;
     while(1) {
@@ -173,7 +187,7 @@ void display_task(void *pvParameters)
         if (button != last_button) {
             ESP_LOGI(TAG, "Button now=%d", button);
             if (button == 0)
-              beep_queue(4000, 50, 5, 5);
+              beep_queue(2000, 75, 1, 1);
         }
 
         last_button = button;
@@ -234,6 +248,9 @@ void display_task(void *pvParameters)
             case DISP_CMD_CLEAR_MSG:
                 lcd_fill_rect(0, 24, 160, 44, lcd_rgb(0x00, 0x00, 0xC0));
                 gfx_refresh_rect(0, 24, 160, 44);
+                break;
+            case DISP_CMD_REDRAW_BG:
+                display_init_bg();
                 break;
             }
         }

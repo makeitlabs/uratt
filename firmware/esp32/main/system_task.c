@@ -45,7 +45,10 @@
 #include "esp_log.h"
 #include "system.h"
 #include "system_task.h"
-
+#include "driver/gpio.h"
+#include "esp_sleep.h"
+#include "lcd_st7735.h"
+#include "display_task.h"
 static const char *TAG = "system_task";
 
 #define SYSTEM_QUEUE_DEPTH 8
@@ -108,6 +111,12 @@ void system_task(void *pvParameters)
 
   while(1) {
     time(&now);
+    if (last_time_pwr_loss == 0) {
+      last_time_pwr_loss = now;
+    }
+    if (last_time_low_batt == 0) {
+      last_time_low_batt = now;
+    }
 
     system_evt_t evt;
 
@@ -131,9 +140,36 @@ void system_task(void *pvParameters)
 
     if (pwr_loss == 0) {
 
-        if ((now - last_time_pwr_loss) >= 10) {
+        if ((now - last_time_pwr_loss) >= 15) {
           ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
           last_time_pwr_loss = now;
+
+
+          ESP_LOGI(TAG, "going to sleep");
+
+          esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
+          gpio_wakeup_enable(13, GPIO_INTR_LOW_LEVEL);
+          gpio_wakeup_enable(35, GPIO_INTR_HIGH_LEVEL);
+          esp_sleep_enable_gpio_wakeup();
+
+          gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
+
+          lcd_reset();
+          lcd_set_backlight(OFF);
+
+          esp_light_sleep_start();
+
+
+          ESP_LOGI(TAG, "waking up");
+
+          gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
+
+          lcd_reset();
+          lcd_reinit();
+
+          display_redraw_bg();
+          lcd_set_backlight(ON);
+
         }
     }
 
