@@ -8,12 +8,10 @@
 #include "esp_https_ota.h"
 #include "string.h"
 #include "net_ota.h"
+#include "net_certs.h"
 #include "esp_wifi.h"
 
 static const char *TAG = "ota_task";
-extern const uint8_t server_cert_pem_start[] asm("_binary_ca_crt_start");
-extern const uint8_t server_cert_pem_end[] asm("_binary_ca_crt_end");
-
 
 #define OTA_URL_SIZE 256
 
@@ -57,7 +55,7 @@ void net_ota_update(void)
 
     esp_http_client_config_t config = {
         .url = CONFIG_FIRMWARE_UPGRADE_URL,
-        .cert_pem = (char *)server_cert_pem_start,
+        .cert_pem = g_client_cert,
         .event_handler = _http_event_handler,
     };
 

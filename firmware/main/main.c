@@ -58,7 +58,6 @@
 #include "sdcard.h"
 #include "display_task.h"
 #include "lcd_st7735.h"
-#include "audio_task.h"
 #include "net_task.h"
 #include "rfid_task.h"
 #include "door_task.h"
@@ -70,6 +69,8 @@ static const char *TAG = "main";
 
 void app_main(void)
 {
+    ESP_LOGI(TAG, "initializing");
+
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -83,6 +84,8 @@ void app_main(void)
     sdcard_init();
     rfid_init();
     main_task_init();
+
+    ESP_LOGI(TAG, "creating tasks");
 
     xTaskCreate(&system_task, "system_task", 2048, NULL, 8, NULL);
     xTaskCreate(&beep_task, "beep_task", 2048, NULL, 8, NULL);

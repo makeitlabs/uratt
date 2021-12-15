@@ -1,6 +1,6 @@
+
 idf_component_register(
   SRCS
-  "audio_task.c"
   "beep_task.c"
   "display_task.c"
   "door_task.c"
@@ -10,6 +10,7 @@ idf_component_register(
   "lcd_st7735.c"
   "main.c"
   "main_task.c"
+  "net_certs.c"
   "net_https.c"
   "net_mqtt.c"
   "net_ota.c"
@@ -19,7 +20,3 @@ idf_component_register(
   "sdcard.c"
   "system_task.c"
   INCLUDE_DIRS ".")
-
-target_add_binary_data(${COMPONENT_TARGET} "ca.crt" TEXT)
-target_add_binary_data(${COMPONENT_TARGET} "client.crt" TEXT)
-target_add_binary_data(${COMPONENT_TARGET} "client.key" TEXT)

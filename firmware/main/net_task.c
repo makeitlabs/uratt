@@ -70,6 +70,7 @@
 
 #include "display_task.h"
 #include "rfid_task.h"
+#include "net_certs.h"
 #include "net_task.h"
 #include "net_https.h"
 #include "net_mqtt.h"
@@ -326,15 +327,18 @@ void net_init(void)
     esp_efuse_mac_get_default(g_mac_addr);
     ESP_LOGI(TAG, "My mac adddress is %2x%2x%2x%2x%2x%2x", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
 
+
+    net_certs_init();
+    net_https_init();
+    net_mqtt_init();
+    net_sntp_init();
+    net_ota_init();
+
     TimerHandle_t timer = xTimerCreate("rssi_timer", (1000 / portTICK_PERIOD_MS), pdTRUE, (void*) 0, net_timer);
     if (xTimerStart(timer, 0) != pdPASS) {
         ESP_LOGE(TAG, "Could not start net timer");
     }
 
-    net_https_init();
-    net_mqtt_init();
-    net_sntp_init();
-    net_ota_init();
 }
 
 
