@@ -28,7 +28,7 @@ config WEB_PORT
 
 config WEB_URL_PATH
     string "URL Path"
-	default "auth/api/v1/resources/resname/acl"
+	default "auth/api/v0/resources/resname/acl"
 	help
 		The path portion of the URL to fetch, empty string is root.
 
@@ -44,11 +44,6 @@ config WEB_BASIC_AUTH_PASS
 	help
 		The password for basic authentication.
 
-config CLIENT_PK_PASSPHRASE
-    string "Passphrase for the client private key."
-	default "secret"
-	help
-		The passphrase to unlock the private key, configured during certificate setup.
 
 config FIRMWARE_UPGRADE_URL
     string "firmware upgrade url endpoint"
@@ -57,10 +52,38 @@ config FIRMWARE_UPGRADE_URL
         URL of server which hosts the firmware
         image.
 
-config SKIP_COMMON_NAME_CHECK
-    bool "Skip server certificate CN fieldcheck"
-    default n
-    help
-        This allows you to skip the validation of OTA server certificate CN field.
+  menu "Certificates"
+
+    config CA_CERT_FILENAME
+        string "filename for CA certificate"
+        default "/sdcard/certs/ca.crt"
+        help
+            Path to file containing the CA cert.
+
+    config CLIENT_CERT_FILENAME
+        string "filename for client certificate"
+        default "/sdcard/certs/client.crt"
+        help
+            Path to file containing the client cert.
+
+    config CLIENT_KEY_FILENAME
+        string "filename for client private key"
+        default "/sdcard/certs/client.key"
+        help
+            Path to file containing the client private key.
+
+    config CLIENT_PK_PASSPHRASE
+        string "Passphrase for the client private key."
+    	default "secret"
+    	help
+    		The passphrase to unlock the private key, configured during certificate setup.
+
+    config SKIP_COMMON_NAME_CHECK
+        bool "Skip server certificate CN fieldcheck"
+        default n
+        help
+            This allows you to skip the validation of OTA server certificate CN field.
+
+  endmenu
 
 endmenu
