@@ -2,6 +2,7 @@
 idf_component_register(
   SRCS
   "beep_task.c"
+  "console.c"
   "display_task.c"
   "door_task.c"
   "glcdfont.c"

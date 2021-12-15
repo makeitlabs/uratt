@@ -38,22 +38,13 @@
 #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/event_groups.h"
 #include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_log.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
-#include "esp_netif.h"
+#include "esp_vfs_dev.h"
 
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include "lwip/netdb.h"
-#include "lwip/dns.h"
-
-#include "esp_tls.h"
-#include "esp_crt_bundle.h"
+#include "esp_log.h"
+#include "console.h"
 
 #include "sdcard.h"
 #include "display_task.h"
@@ -67,11 +58,23 @@
 
 static const char *TAG = "main";
 
+
+static void nvs_init(void)
+{
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK( nvs_flash_erase() );
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "initializing");
 
-    ESP_ERROR_CHECK(nvs_flash_init());
+    nvs_init();
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -95,4 +98,15 @@ void app_main(void)
     xTaskCreate(&net_task, "net_task", 8192, NULL, 7, NULL);
     xTaskCreate(&main_task, "main_task", 4096, NULL, 7, NULL);
 
+    console_init();
+    console_register_cmd_log();
+
+    while (true) {
+      if (console_poll()) {
+        break;
+      }
+    }
+
+    ESP_LOGI(TAG, "Console terminated.");
+    console_done();
 }

@@ -2,4 +2,3 @@ build/*
 main/*.key
 main/*.crt
 *.old
-sdkconfig
