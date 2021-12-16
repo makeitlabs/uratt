@@ -19,5 +19,6 @@ idf_component_register(
   "net_task.c"
   "rfid_task.c"
   "sdcard.c"
+  "spiflash.c"
   "system_task.c"
   INCLUDE_DIRS ".")

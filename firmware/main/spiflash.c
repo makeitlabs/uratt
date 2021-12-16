@@ -34,79 +34,55 @@
  Author: Steve Richardson (steve.richardson@makeitlabs.com)
  -------------------------------------------------------------------------- */
 
-#include <string.h>
 #include <stdlib.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_wifi.h"
+#include <stdio.h>
+#include <string.h>
+#include "esp_vfs.h"
+#include "esp_vfs_fat.h"
 #include "esp_system.h"
-#include "nvs_flash.h"
-#include "esp_vfs_dev.h"
 
-#include "esp_log.h"
-#include "console.h"
+static const char *TAG = "spiflash";
 
-#include "sdcard.h"
-#include "spiflash.h"
-#include "display_task.h"
-#include "lcd_st7735.h"
-#include "net_task.h"
-#include "rfid_task.h"
-#include "door_task.h"
-#include "beep_task.h"
-#include "system_task.h"
-#include "main_task.h"
+// Handle of the wear levelling library instance
+static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
-static const char *TAG = "main";
+// Mount path for the partition
+const char *base_path = "/spiflash";
 
+// Flash partition name, from partitions.csv
+const char *flash_partition = "storage";
 
-static void nvs_init(void)
+esp_err_t spiflash_init(void)
 {
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK( nvs_flash_erase() );
-        err = nvs_flash_init();
+    ESP_LOGI(TAG, "Mounting SPI Flash FAT filesystem...");
+    // To mount device we need name of device partition, define base_path
+    // and allow format partition in case if it is new one and was not formatted before
+    const esp_vfs_fat_mount_config_t mount_config = {
+            .max_files = 4,
+            .format_if_mount_failed = true,
+            .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
+    };
+    esp_err_t err = esp_vfs_fat_spiflash_mount(base_path, flash_partition, &mount_config, &s_wl_handle);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to mount SPI Flash FATFS (%s)", esp_err_to_name(err));
+        return err;
     }
-    ESP_ERROR_CHECK(err);
+
+    ESP_LOGI(TAG, "Mounted SPI Flash partition '%s' to '%s'", flash_partition, base_path);
+    return ESP_OK;
 }
 
-void app_main(void)
+esp_err_t spiflash_deinit(void)
 {
+  // Unmount FATFS
+  ESP_LOGI(TAG, "Unmounting SPI Flash FAT filesystem...");
+  esp_err_t err = esp_vfs_fat_spiflash_unmount(base_path, s_wl_handle);
 
-    ESP_LOGI(TAG, "initializing");
-
-    nvs_init();
-
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    system_init();
-    lcd_hw_init();
-    display_init();
-    beep_init();
-    door_init();
-
-    sdcard_init();
-    spiflash_init();
-    rfid_init();
-    main_task_init();
-
-    ESP_LOGI(TAG, "creating tasks");
-
-    xTaskCreate(&system_task, "system_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&beep_task, "beep_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&door_task, "door_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&rfid_task, "rfid_task", 4096, NULL, 8, NULL);
-    xTaskCreate(&display_task, "display_task", 8192, NULL, 8, NULL);
-    xTaskCreate(&net_task, "net_task", 8192, NULL, 7, NULL);
-    xTaskCreate(&main_task, "main_task", 4096, NULL, 7, NULL);
-
-    console_init();
-
-    while (true) {
-      console_poll();
-    }
-
-    ESP_LOGI(TAG, "Console terminated.");
-    console_done();
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to unmount SPI Flash FATFS (%s)", esp_err_to_name(err));
+    return err;
+  }
+  ESP_LOGI(TAG, "Unmounted SPI Flash from '%s'.", base_path);
+  return ESP_OK;
 }
