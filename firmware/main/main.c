@@ -71,6 +71,7 @@ static void nvs_init(void)
 
 void app_main(void)
 {
+
     ESP_LOGI(TAG, "initializing");
 
     nvs_init();
@@ -99,12 +100,9 @@ void app_main(void)
     xTaskCreate(&main_task, "main_task", 4096, NULL, 7, NULL);
 
     console_init();
-    console_register_cmd_log();
 
     while (true) {
-      if (console_poll()) {
-        break;
-      }
+      console_poll();
     }
 
     ESP_LOGI(TAG, "Console terminated.");
