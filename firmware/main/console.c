@@ -48,6 +48,7 @@
 #include "driver/uart.h"
 #include "linenoise/linenoise.h"
 #include "argtable3/argtable3.h"
+#include "console.h"
 
 static char* prompt = LOG_COLOR_I "uRATT> " LOG_RESET_COLOR;
 
@@ -113,13 +114,15 @@ void console_init(void)
     /* register help command */
     esp_console_register_help_command();
 
+    console_register_cmd_log();
+    console_register_cmd_nvs_dump();
+    console_register_cmd_nvs_set();
 
-    printf("\n"
+    printf("\n\n"
            "Welcome to MakeIt Labs uRATT - RFID All The Things!\n"
            "Type 'help' to get the list of commands.\n"
            "Use UP/DOWN arrows to navigate through command history.\n"
-           "Press TAB when typing command name to auto-complete.\n"
-           "Press Enter or Ctrl+C will terminate the console environment.\n");
+           "Press TAB when typing command name to auto-complete.\n");
 
     /* Figure out if the terminal supports escape sequences */
     int probe_status = linenoiseProbe();
@@ -181,13 +184,153 @@ static int set_log(int argc, char **argv)
     }
 
     esp_log_level_set(log_args.tag->sval[0], esp_log_level);
-    return true;
+
+    printf("\nSet log level %s to %s\n\n", log_args.tag->sval[0], log_args.level->sval[0]);
+    return ESP_OK;
   } else {
     printf("\nMust specify <tag> <level>\n");
   }
 
-  return false;
+  return ESP_ERR_NOT_FOUND;
 }
+
+static struct {
+    struct arg_str *namespace;
+    struct arg_end *end;
+} nvs_dump_args;
+
+static int nvs_dump(int argc, char **argv)
+{
+  int nerrors = arg_parse(argc, argv, (void **) &nvs_dump_args);
+  if (nerrors != 0) {
+      arg_print_errors(stderr, nvs_dump_args.end, argv[0]);
+      return 1;
+  }
+
+  nvs_handle_t hdl;
+  esp_err_t r = nvs_open(nvs_dump_args.namespace->sval[0], NVS_READONLY, &hdl);
+  if (r != ESP_OK) {
+    printf("\nNVS open error: %s\n", esp_err_to_name(r));
+    return r;
+  }
+
+  // Example of listing all the key-value pairs of any type under specified partition and namespace
+  nvs_iterator_t it = nvs_entry_find("nvs", nvs_dump_args.namespace->sval[0], NVS_TYPE_ANY);
+  while (it != NULL) {
+      nvs_entry_info_t info;
+      nvs_entry_info(it, &info);
+      it = nvs_entry_next(it);
+      printf("%s.%s=", info.namespace_name, info.key);
+      switch(info.type) {
+        case NVS_TYPE_STR:
+          {
+            char s[128];
+            size_t len = sizeof(s);
+            nvs_get_str(hdl, info.key, s, &len);
+            printf("\"%s\"", s);
+          }
+          break;
+        default:
+          printf("[no value handler]");
+      }
+      printf("\n");
+  };
+
+  nvs_close(hdl);
+
+  return ESP_OK;
+}
+
+
+static struct {
+    struct arg_str *namespace;
+    struct arg_str *key;
+    struct arg_str *value;
+    struct arg_end *end;
+} nvs_set_args;
+static int nvs_set(int argc, char **argv)
+{
+  int nerrors = arg_parse(argc, argv, (void **) &nvs_set_args);
+  if (nerrors != 0) {
+      arg_print_errors(stderr, nvs_set_args.end, argv[0]);
+      return 1;
+  }
+
+  nvs_handle_t hdl;
+  esp_err_t r = nvs_open(nvs_set_args.namespace->sval[0], NVS_READWRITE, &hdl);
+  if (r != ESP_OK) {
+    printf("\nNVS open error: %s\n", esp_err_to_name(r));
+    return r;
+  }
+
+  r = nvs_set_str(hdl, nvs_set_args.key->sval[0], nvs_set_args.value->sval[0]);
+
+  if (r != ESP_OK) {
+    printf("\nNVS set error: %s", esp_err_to_name(r));
+    nvs_close(hdl);
+    return r;
+  }
+
+  nvs_close(hdl);
+  return ESP_OK;
+}
+
+
+
+void console_register_cmd_log(void)
+{
+    log_args.tag = arg_str1(NULL, NULL, "<tag>", "TAG of module to change, * to reset all to a given level");
+    log_args.level = arg_str1(NULL, NULL, "<level>", "Log level to set (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)");
+    log_args.end = arg_end(2);
+
+    const esp_console_cmd_t log_cmd = {
+        .command = "log",
+        .help = "Set log level for a given TAG",
+        .hint = NULL,
+        .func = &set_log,
+        .argtable = &log_args
+    };
+
+    ESP_ERROR_CHECK( esp_console_cmd_register(&log_cmd) );
+}
+
+
+void console_register_cmd_nvs_dump(void)
+{
+  nvs_dump_args.namespace = arg_str1(NULL, NULL, "<namespace>", "NVS namespace");
+  nvs_dump_args.end = arg_end(2);
+
+  const esp_console_cmd_t nvs_dump_cmd = {
+      .command = "nvs_dump",
+      .help = "Dump all NVS variables in a namespace",
+      .hint = NULL,
+      .func = &nvs_dump,
+      .argtable = &nvs_dump_args
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_dump_cmd) );
+}
+
+
+void console_register_cmd_nvs_set(void)
+{
+  nvs_set_args.namespace = arg_str1(NULL, NULL, "<namespace>", "NVS namespace");
+  nvs_set_args.key = arg_str1(NULL, NULL, "<key>", "item key name");
+  nvs_set_args.value = arg_str1(NULL, NULL, "<value>", "item value (string)");
+  nvs_set_args.end = arg_end(2);
+
+  const esp_console_cmd_t nvs_dump_cmd = {
+      .command = "nvs_set",
+      .help = "Set NVS key:value pair in namespace",
+      .hint = NULL,
+      .func = &nvs_set,
+      .argtable = &nvs_set_args
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_dump_cmd) );
+}
+
+
 
 int console_poll(void)
 {
@@ -214,21 +357,4 @@ int console_poll(void)
     linenoiseFree(line);
 
     return 0;
-}
-
-void console_register_cmd_log(void)
-{
-    log_args.tag = arg_str1(NULL, NULL, "<tag>", "TAG of module to change, * to reset all to a given level");
-    log_args.level = arg_str1(NULL, NULL, "<level>", "Log level to set (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)");
-    log_args.end = arg_end(2);
-
-    const esp_console_cmd_t log_cmd = {
-        .command = "log",
-        .help = "Set log level for a given TAG",
-        .hint = NULL,
-        .func = &set_log,
-        .argtable = &log_args
-    };
-
-    ESP_ERROR_CHECK( esp_console_cmd_register(&log_cmd) );
 }
