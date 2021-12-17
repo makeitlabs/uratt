@@ -118,7 +118,7 @@ esp_err_t net_https_download_acl()
   free(conf_api_user);
   free(conf_api_password);
 
-  ESP_LOGI(TAG, "http_get returned %d", r);
+  ESP_LOGD(TAG, "http_get returned %d", result);
   if (r != ESP_OK) {
     xSemaphoreGive(g_sdcard_mutex);
     goto failed;
@@ -152,7 +152,7 @@ esp_err_t net_https_download_acl()
     xSemaphoreGive(g_sdcard_mutex);
 
   } else {
-    ESP_LOGE(TAG, "http_get returned %d, download ACL failed", r);
+    ESP_LOGE(TAG, "http_get result %d, download ACL failed", result);
     return ESP_FAIL;
   }
 
@@ -182,7 +182,7 @@ int net_https_get_file(const char *web_url, const char *filename)
   if (result == 200) {
     ESP_LOGI(TAG, "download OK!");
   } else {
-    ESP_LOGE(TAG, "http result code != 200");
+    ESP_LOGE(TAG, "http result code %d", result);
     goto failed;
   }
 
