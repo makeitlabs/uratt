@@ -92,13 +92,12 @@ static esp_netif_t *s_example_esp_netif = NULL;
 
 
 #define NET_QUEUE_DEPTH 8
-#define NET_EVT_BUF_SIZE 128
 
 typedef struct net_evt {
   uint8_t cmd;
-  char buf1[NET_EVT_BUF_SIZE];
+  char* buf1;
   union {
-      char buf2[NET_EVT_BUF_SIZE];
+      char* buf2;
       uint8_t allowed;
   } params;
 } net_evt_t;
@@ -301,42 +300,61 @@ BaseType_t net_cmd_queue(int cmd)
 {
     net_evt_t evt;
     evt.cmd = cmd;
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+    evt.buf1 = NULL;
+    evt.params.buf2 = NULL;
+    return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }
 
 BaseType_t net_cmd_queue_access(char *member, int allowed)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_SEND_ACCESS;
-    strncpy(evt.buf1, member, NET_EVT_BUF_SIZE);
-    evt.params.allowed = allowed;
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+    evt.buf1 = malloc(strlen(member) + 1);
+    if (evt.buf1) {
+      strncpy(evt.buf1, member, strlen(member) + 1);
+      evt.params.buf2 = NULL;
+      evt.params.allowed = allowed;
+      return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
+    }
+    return ESP_ERR_NO_MEM;
 }
 
 BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_SEND_ACCESS_ERROR;
-    strncpy(evt.buf1, err, NET_EVT_BUF_SIZE);
-    strncpy(evt.params.buf2, err, NET_EVT_BUF_SIZE);
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+    evt.buf1 = malloc(strlen(err) + 1);
+    evt.params.buf2 = malloc(strlen(err_ext) + 1);
+    if (evt.buf1 && evt.params.buf2) {
+      strncpy(evt.buf1, err, strlen(err) + 1);
+      strncpy(evt.params.buf2, err, strlen(err_ext) + 1);
+      return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
+    }
+    free(evt.buf1);
+    free(evt.params.buf2);
+    return ESP_ERR_NO_MEM;
 }
 
 BaseType_t net_cmd_queue_wget(char *url, char *filename)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_WGET;
-    strncpy(evt.buf1, url, NET_EVT_BUF_SIZE);
-    strncpy(evt.params.buf2, filename, NET_EVT_BUF_SIZE);
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+    evt.buf1 = malloc(strlen(url) + 1);
+    evt.params.buf2 = malloc(strlen(filename) + 1);
+    if (evt.buf1 && evt.params.buf2) {
+      strncpy(evt.buf1, url, strlen(url) + 1);
+      strncpy(evt.params.buf2, filename, strlen(filename) + 1);
+      return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
+    }
+    free(evt.buf1);
+    free(evt.params.buf2);
+    return ESP_ERR_NO_MEM;
 }
 
 
 void net_init(void)
 {
     ESP_LOGI(TAG, "Initializing network task...");
-
-
 
     display_net_msg("WIFI INIT");
 
@@ -412,10 +430,13 @@ void net_task(void *pvParameters)
 
           case NET_CMD_SEND_ACCESS:
             net_mqtt_send_access(evt.buf1, evt.params.allowed);
+            free(evt.buf1);
             break;
 
           case NET_CMD_SEND_ACCESS_ERROR:
             net_mqtt_send_access_error(evt.buf1, evt.params.buf2);
+            free(evt.buf1);
+            free(evt.params.buf2);
             break;
 
           case NET_CMD_NTP_SYNC:
@@ -428,6 +449,8 @@ void net_task(void *pvParameters)
 
           case NET_CMD_WGET:
             net_https_get_file(evt.buf1, evt.params.buf2);
+            free(evt.buf1);
+            free(evt.params.buf2);
             break;
 
           default:
