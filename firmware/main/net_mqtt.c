@@ -247,9 +247,10 @@ int net_mqtt_init(void)
   char *conf_mqtt_broker;
   config_get_string("mqtt_broker", &conf_mqtt_broker, "mqtts://my-mqtt-server.org:1883");
   mqtt_cfg.uri = conf_mqtt_broker;
-  // note, this will never get freed (conf_mqtt_broker)
 
   mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+
+  free(conf_mqtt_broker);
 
   return 0;
 }
