@@ -415,9 +415,10 @@ void net_task(void *pvParameters)
 
           case NET_CMD_DOWNLOAD_ACL:
             {
-              uint32_t start = esp_log_timestamp();
+              time_t start = esp_log_timestamp();
               net_https_download_acl();
-              ESP_LOGW(TAG, "download took %d", esp_log_timestamp() - start);
+              time_t elapsed = esp_log_timestamp() - start;
+              ESP_LOGI(TAG, "ACL download took %ld.%ld seconds", elapsed / 1000, elapsed % 1000);
             }
             break;
 
