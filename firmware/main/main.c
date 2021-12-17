@@ -120,6 +120,8 @@ void app_main(void)
     ESP_LOGD(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
 
 
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
     console_init();
 
     while (true) {
