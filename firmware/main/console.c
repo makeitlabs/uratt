@@ -36,6 +36,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_wifi.h"
@@ -50,13 +51,18 @@
 #include "argtable3/argtable3.h"
 #include "console.h"
 
+#include "net_task.h"
+
 static char* prompt = LOG_COLOR_I "uRATT> " LOG_RESET_COLOR;
 
 static void console_register_cmd_log(void);
 static void console_register_cmd_nvs_dump(void);
 static void console_register_cmd_nvs_set(void);
 static void console_register_cmd_nvs_erase(void);
+static void console_register_cmd_wget(void);
+static void console_register_cmd_dir(void);
 static void console_register_cmd_reset(void);
+
 
 void console_init(void)
 {
@@ -124,7 +130,10 @@ void console_init(void)
     console_register_cmd_nvs_dump();
     console_register_cmd_nvs_set();
     console_register_cmd_nvs_erase();
+    console_register_cmd_wget();
+    console_register_cmd_dir();
     console_register_cmd_reset();
+
 
     printf("\n\n"
            "Welcome to MakeIt Labs uRATT - RFID All The Things!\n"
@@ -246,6 +255,11 @@ static int nvs_dump(int argc, char **argv)
 
   nvs_close(hdl);
 
+  nvs_stats_t nvs_stats;
+  nvs_get_stats(NULL, &nvs_stats);
+  printf("\nCount: UsedEntries = (%d), FreeEntries = (%d), AllEntries = (%d)\n\n",
+         nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries);
+
   return ESP_OK;
 }
 
@@ -315,6 +329,68 @@ static int nvs_erase(int argc, char **argv)
   nvs_close(hdl);
   return ESP_OK;
 }
+
+static struct {
+    struct arg_str *url;
+    struct arg_str *filename;
+    struct arg_end *end;
+} wget_args;
+static int wget(int argc, char **argv)
+{
+  int nerrors = arg_parse(argc, argv, (void **) &wget_args);
+  if (nerrors != 0) {
+      arg_print_errors(stderr, wget_args.end, argv[0]);
+      return 1;
+  }
+
+  return net_cmd_queue_wget((char*)wget_args.url->sval[0], (char*)wget_args.filename->sval[0]);
+}
+
+
+static struct {
+    struct arg_str *path;
+    struct arg_end *end;
+} dir_args;
+static int dir(int argc, char **argv)
+{
+  int nerrors = arg_parse(argc, argv, (void **) &dir_args);
+  if (nerrors != 0) {
+      arg_print_errors(stderr, dir_args.end, argv[0]);
+      return 1;
+  }
+
+  struct dirent *dir;
+  DIR* d = opendir(dir_args.path->sval[0]);
+  if (d) {
+      while((dir = readdir(d)) != NULL) {
+
+        struct stat st;
+        size_t len = strlen(dir_args.path->sval[0]) + strlen(dir->d_name) + 2;
+        char *fn = malloc(len);
+        if (fn == NULL) {
+          printf("\ncan't malloc\n");
+          closedir(d);
+          return -1;
+        }
+        snprintf(fn, len, "%s/%s", dir_args.path->sval[0], dir->d_name);
+
+        if (stat(fn, &st) == -1) {
+          printf("\ncan't stat %s\n", fn);
+          free(fn);
+          closedir(d);
+          return -1;
+        }
+        free(fn);
+
+        printf("%5s %32s %ld\n", dir->d_type == DT_DIR ? "<DIR>" : dir->d_type == DT_REG ? "" : "?", dir->d_name, st.st_size);
+
+      }
+      closedir(d);
+  }
+
+  return ESP_OK;
+}
+
 
 
 static int system_reset(int argc, char **argv)
@@ -392,6 +468,49 @@ static void console_register_cmd_nvs_erase(void)
 
   ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_erase_cmd) );
 }
+
+static void console_register_cmd_wget(void)
+{
+    wget_args.url = arg_str1(NULL, NULL, "<url>", "URL to retrieve");
+    wget_args.filename = arg_str1(NULL, NULL, "<filename>", "Filename to store contents");
+    wget_args.end = arg_end(2);
+
+    const esp_console_cmd_t wget_cmd = {
+        .command = "wget",
+        .help = "Retrieve a file via HTTP(S) and save it to the filesystem",
+        .hint = NULL,
+        .func = &wget,
+        .argtable = &wget_args
+    };
+
+    ESP_ERROR_CHECK( esp_console_cmd_register(&wget_cmd) );
+}
+
+
+static void console_register_cmd_dir(void)
+{
+    dir_args.path = arg_str1(NULL, NULL, "<path>", "Path to directory");
+    dir_args.end = arg_end(2);
+
+    const esp_console_cmd_t dir_cmd = {
+        .command = "dir",
+        .help = "Show a list of files on a particular path of the filesystem",
+        .hint = NULL,
+        .func = &dir,
+        .argtable = &dir_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&dir_cmd) );
+
+    const esp_console_cmd_t ls_cmd = {
+        .command = "ls",
+        .help = "Show a list of files on a particular path of the filesystem",
+        .hint = NULL,
+        .func = &dir,
+        .argtable = &dir_args
+    };
+    ESP_ERROR_CHECK( esp_console_cmd_register(&ls_cmd) );
+}
+
 
 
 static void console_register_cmd_reset(void)

@@ -91,8 +91,8 @@ static esp_netif_t *s_example_esp_netif = NULL;
 
 
 
-#define NET_QUEUE_DEPTH 16
-#define NET_EVT_BUF_SIZE 32
+#define NET_QUEUE_DEPTH 8
+#define NET_EVT_BUF_SIZE 128
 
 typedef struct net_evt {
   uint8_t cmd;
@@ -322,6 +322,16 @@ BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 
+BaseType_t net_cmd_queue_wget(char *url, char *filename)
+{
+    net_evt_t evt;
+    evt.cmd = NET_CMD_WGET;
+    strncpy(evt.buf1, url, NET_EVT_BUF_SIZE);
+    strncpy(evt.params.buf2, filename, NET_EVT_BUF_SIZE);
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+
+
 void net_init(void)
 {
     ESP_LOGI(TAG, "Initializing network task...");
@@ -414,6 +424,10 @@ void net_task(void *pvParameters)
 
           case NET_CMD_OTA_UPDATE:
             net_ota_update();
+            break;
+
+          case NET_CMD_WGET:
+            net_https_get_file(evt.buf1, evt.params.buf2);
             break;
 
           default:

@@ -4,4 +4,6 @@
 int net_https_init();
 int net_https_download_acl();
 
+int net_https_get_file(const char *web_url, const char *filename);
+
 #endif

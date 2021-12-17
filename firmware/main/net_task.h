@@ -46,6 +46,7 @@ esp_err_t net_disconnect(void);
 BaseType_t net_cmd_queue(int cmd);
 BaseType_t net_cmd_queue_access(char *member, int allowed);
 BaseType_t net_cmd_queue_access_error(char *err, char *err_ext);
+BaseType_t net_cmd_queue_wget(char *url, char *filename);
 
 #define NET_CMD_INIT 0
 #define NET_CMD_DISCONNECT 1
@@ -58,7 +59,7 @@ BaseType_t net_cmd_queue_access_error(char *err, char *err_ext);
 #define NET_CMD_SEND_ACCESS_ERROR 8
 #define NET_CMD_NTP_SYNC 9
 #define NET_CMD_OTA_UPDATE 10
-
+#define NET_CMD_WGET 11
 
 extern uint8_t g_mac_addr[6];
 

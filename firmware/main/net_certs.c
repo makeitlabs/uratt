@@ -41,6 +41,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "config.h"
 #include "net_certs.h"
 
 char* g_client_cert = NULL;
@@ -71,9 +72,9 @@ esp_err_t net_certs_load(char* filename, char** buf)
     return -1;
   }
 
-  int r = read(fd, *buf, 1);
+  int r = read(fd, *buf, st.st_size);
   if (r != st.st_size) {
-    ESP_LOGE(TAG, "couldn't read %ld bytes from %s", (long)st.st_size, filename);
+    ESP_LOGE(TAG, "couldn't read %ld bytes from %s r=%d", (long)st.st_size, filename, r);
     free(*buf);
     close(fd);
     return -1;
@@ -86,17 +87,29 @@ esp_err_t net_certs_load(char* filename, char** buf)
 
 esp_err_t net_certs_init()
 {
-  if (net_certs_load("/certs/ca.crt", &g_ca_cert) != ESP_OK) {
+  char *conf_ca_cert;
+  char *conf_client_cert;
+  char *conf_client_key;
+  config_get_string("ca_cert", &conf_ca_cert, "/spiflash/ca.crt");
+  config_get_string("client_cert", &conf_client_cert, "/spiflash/client.crt");
+  config_get_string("client_key", &conf_client_key, "/spiflash/client.key");
+
+
+  if (net_certs_load(conf_ca_cert, &g_ca_cert) != ESP_OK) {
     g_ca_cert = NULL;
   }
 
-  if (net_certs_load("/certs/client.crt", &g_client_cert) != ESP_OK) {
+  if (net_certs_load(conf_client_cert, &g_client_cert) != ESP_OK) {
     g_client_cert = NULL;
   }
 
-  if (net_certs_load("/certs/client.key", &g_client_key) != ESP_OK) {
+  if (net_certs_load(conf_client_key, &g_client_key) != ESP_OK) {
     g_client_key = NULL;
   }
+
+  free(conf_ca_cert);
+  free(conf_client_cert);
+  free(conf_client_key);
 
   if (g_ca_cert == NULL || g_client_cert == NULL || g_client_key == NULL) {
     ESP_LOGE(TAG, "One or more certificates failed to load!");

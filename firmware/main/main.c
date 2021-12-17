@@ -70,8 +70,24 @@ static void nvs_init(void)
     ESP_ERROR_CHECK(err);
 }
 
+// experimental windowed logging/command line
+/*
+int windowed_vprintf(const char* format, va_list vlist)
+{
+  printf("\033[s\033[1;25r\033D\033[25H");
+  int r = vprintf(format, vlist);
+  printf("\033[26;36r\033[u");
+  fflush(stdout);
+  return r;
+}
+*/
+
 void app_main(void)
 {
+    /*
+    printf("\033[2J");
+    esp_log_set_vprintf(windowed_vprintf);
+    */
 
     ESP_LOGI(TAG, "initializing");
 

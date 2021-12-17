@@ -168,3 +168,52 @@ failed:
   net_cmd_queue(NET_CMD_SEND_ACL_FAILED);
   return ret;
 }
+
+
+int net_https_get_file(const char *web_url, const char *filename)
+{
+  int ret = -1, r;
+  char *resp_buf;
+
+  resp_buf = malloc(RESP_BUF_SIZE);
+  if (resp_buf) {
+      r = http_init(0);
+
+      FILE* file = fopen(filename, "w");
+
+      if (file) {
+          ESP_LOGI(TAG, "URL: %s", web_url);
+          r = http_get(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, resp_buf, RESP_BUF_SIZE, file);
+
+          ESP_LOGI(TAG, "http_get returned %d", r);
+          if (r == -1) {
+              ESP_LOGE(TAG, "http_get returned -1 (%s)", resp_buf);
+              goto failed;
+          }
+          fclose(file);
+      } else {
+          ESP_LOGE(TAG, "could not open file for writing");
+          goto failed;
+      }
+      http_close(0);
+
+      if (r == 200) {
+        ESP_LOGI(TAG, "download OK!");
+      } else {
+        ESP_LOGE(TAG, "http result code != 200");
+        goto failed;
+      }
+
+  } else {
+      ESP_LOGE(TAG, "Could not malloc response buffer");
+      return -100;
+  }
+
+  ESP_LOGI(TAG, "download file %s success!", filename);
+  free(resp_buf);
+  return 0;
+
+failed:
+  free(resp_buf);
+  return ret;
+}
