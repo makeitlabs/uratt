@@ -2,7 +2,7 @@
 #define _NET_HTTPS
 
 int net_https_init();
-int net_https_download_acl();
+esp_err_t net_https_download_acl();
 
 int net_https_get_file(const char *web_url, const char *filename);
 

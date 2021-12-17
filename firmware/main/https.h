@@ -1,22 +1,9 @@
-//
-// Created by HISONA on 2016. 2. 29..
-//
+#ifndef _HTTPS_H
+#define _HTTPS_H
 
-#ifndef HTTPS_CLIENT_HTTPS_H
-#define HTTPS_CLIENT_HTTPS_H
+esp_err_t http_init(void);
 
-/*---------------------------------------------------------------------*/
+esp_err_t http_get_file(int id, const char *url, const char *auth_user, const char *auth_pass, const char *filename, int* result);
+esp_err_t http_post(int id, const char *url, const char *data, char *response, int size);
 
-char *strtoken(char *src, char *dst, int size);
-
-int  http_init(int id);
-int  http_close(int id);
-int  http_get(int id, const char *url, const char *auth_user, const char *auth_pass, char *response, int size, FILE* fp);
-int  http_post(int id, const char *url, const char *data, char *response, int size);
-
-void http_strerror(char *buf, int len);
-int  http_open_chunked(int id, char *url, char *auth_user, char *auth_pass);
-int  http_write_chunked(int id, char *data, int len);
-int  http_read_chunked(int id, char *response, int size);
-
-#endif //HTTPS_CLIENT_HTTPS_H
+#endif

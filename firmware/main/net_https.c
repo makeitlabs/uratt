@@ -65,6 +65,7 @@
 #include "mbedtls/certs.h"
 #include "mbedtls/base64.h"
 
+#include "config.h"
 #include "display_task.h"
 #include "rfid_task.h"
 #include "net_task.h"
@@ -78,142 +79,116 @@ static const char *TAG = "net_https";
 #define WEB_BASIC_AUTH_USER CONFIG_WEB_BASIC_AUTH_USER
 #define WEB_BASIC_AUTH_PASS CONFIG_WEB_BASIC_AUTH_PASS
 
-#define RESP_BUF_SIZE 1024
-
 int net_https_init(void)
 {
   ESP_LOGI(TAG, "net_https init");
 
+  http_init();
+
   return 0;
 }
 
-int net_https_download_acl()
+esp_err_t net_https_download_acl()
 {
-  int ret = -1, r;
+  int result = 0;
+  int r = ESP_FAIL;
   char web_url[256];
-  char *resp_buf;
 
-  resp_buf = malloc(RESP_BUF_SIZE);
-  if (resp_buf) {
-      r = http_init(0);
-      snprintf(web_url, sizeof(web_url), "https://%s/%s", WEB_SERVER, WEB_URL_PATH);
+  char *conf_acl_url_fmt;
+  char *conf_acl_resource;
+  config_get_string("acl_url_fmt", &conf_acl_url_fmt, "https://my-server.org:443/auth/api/v0/resources/%s/acl");
+  config_get_string("acl_resource", &conf_acl_resource, "frontdoor");
 
-      display_net_msg("WIFI DOWNLOAD");
+  snprintf(web_url, sizeof(web_url), conf_acl_url_fmt, conf_acl_resource);
+  free(conf_acl_url_fmt);
+  free(conf_acl_resource);
 
-      xSemaphoreTake(g_sdcard_mutex, portMAX_DELAY);
-      FILE* file = fopen("/sdcard/acl-temp.txt", "w");
+  display_net_msg("WIFI DOWNLOAD");
 
-      if (file) {
-          ESP_LOGI(TAG, "download ACL from URL: %s", web_url);
-          r = http_get(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, resp_buf, RESP_BUF_SIZE, file);
+  xSemaphoreTake(g_sdcard_mutex, portMAX_DELAY);
 
-          ESP_LOGI(TAG, "http_get returned %d", r);
-          if (r == -1) {
-              ESP_LOGE(TAG, "http_get returned -1 (%s)", resp_buf);
-              xSemaphoreGive(g_sdcard_mutex);
-              goto failed;
-          }
-          fclose(file);
-      } else {
-          ESP_LOGE(TAG, "could not open file for writing");
-          xSemaphoreGive(g_sdcard_mutex);
-          goto failed;
-      }
-      http_close(0);
+  ESP_LOGI(TAG, "download ACL from URL: %s", web_url);
 
-      if (r == 200) {
-          xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
-          // delete existing ACL file if it exists
-          struct stat st;
-          if (stat("/sdcard/acl.txt", &st) == 0) {
-              if (unlink("/sdcard/acl.txt") != 0) {
-                ESP_LOGE(TAG, "could not delete old acl file");
-                xSemaphoreGive(g_sdcard_mutex);
-                xSemaphoreGive(g_acl_mutex);
-                goto failed;
-              }
-          }
+  char *conf_api_user;
+  char *conf_api_password;
+  config_get_string("api_user", &conf_api_user, "username");
+  config_get_string("api_password", &conf_api_password, "password");
+  r = http_get_file(0, web_url, conf_api_user, conf_api_password, "/sdcard/acl-temp.txt", &result);
 
-          // move downloaded ACL in place
-          if (rename("/sdcard/acl-temp.txt", "/sdcard/acl.txt") != 0) {
-              ESP_LOGE(TAG, "Could not rename downloaded ACL file!");
-              xSemaphoreGive(g_sdcard_mutex);
-              xSemaphoreGive(g_acl_mutex);
-              goto failed;
-          }
-          xSemaphoreGive(g_acl_mutex);
+  free(conf_api_user);
+  free(conf_api_password);
 
-          display_net_msg("DOWNLOAD OK");
-          net_cmd_queue(NET_CMD_SEND_ACL_UPDATED);
-      } else {
-        ESP_LOGE(TAG, "http result code != 200");
+  ESP_LOGI(TAG, "http_get returned %d", r);
+  if (r != ESP_OK) {
+    xSemaphoreGive(g_sdcard_mutex);
+    goto failed;
+  }
+
+  if (result == 200) {
+    xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
+    // delete existing ACL file if it exists
+    struct stat st;
+    if (stat("/sdcard/acl.txt", &st) == 0) {
+      if (unlink("/sdcard/acl.txt") != 0) {
+        ESP_LOGE(TAG, "could not delete old acl file");
         xSemaphoreGive(g_sdcard_mutex);
+        xSemaphoreGive(g_acl_mutex);
         goto failed;
       }
+    }
 
+    // move downloaded ACL in place
+    if (rename("/sdcard/acl-temp.txt", "/sdcard/acl.txt") != 0) {
+      ESP_LOGE(TAG, "Could not rename downloaded ACL file!");
       xSemaphoreGive(g_sdcard_mutex);
+      xSemaphoreGive(g_acl_mutex);
+      goto failed;
+    }
+    xSemaphoreGive(g_acl_mutex);
+
+    display_net_msg("DOWNLOAD OK");
+    net_cmd_queue(NET_CMD_SEND_ACL_UPDATED);
+
+    xSemaphoreGive(g_sdcard_mutex);
 
   } else {
-      ESP_LOGE(TAG, "Could not malloc acl buffer");
-      return -100;
+    ESP_LOGE(TAG, "http_get returned %d, download ACL failed", r);
+    return ESP_FAIL;
   }
 
   ESP_LOGI(TAG, "download ACL success!");
-  free(resp_buf);
   return 0;
 
 failed:
-  free(resp_buf);
   display_net_msg("DOWNLOAD FAIL");
   net_cmd_queue(NET_CMD_SEND_ACL_FAILED);
-  return ret;
+  return r;
 }
 
 
 int net_https_get_file(const char *web_url, const char *filename)
 {
-  int ret = -1, r;
-  char *resp_buf;
+  int result = 0;
+  int r = ESP_FAIL;
 
-  resp_buf = malloc(RESP_BUF_SIZE);
-  if (resp_buf) {
-      r = http_init(0);
+  ESP_LOGI(TAG, "get file from URL: %s", web_url);
+  r = http_get_file(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, filename, &result);
 
-      FILE* file = fopen(filename, "w");
+  ESP_LOGI(TAG, "http_get returned %d", result);
+  if (r != ESP_OK) {
+    goto failed;
+  }
 
-      if (file) {
-          ESP_LOGI(TAG, "get file from URL: %s", web_url);
-          r = http_get(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, resp_buf, RESP_BUF_SIZE, file);
-
-          ESP_LOGI(TAG, "http_get returned %d", r);
-          if (r == -1) {
-              ESP_LOGE(TAG, "http_get returned -1 (%s)", resp_buf);
-              goto failed;
-          }
-          fclose(file);
-      } else {
-          ESP_LOGE(TAG, "could not open file for writing");
-          goto failed;
-      }
-      http_close(0);
-
-      if (r == 200) {
-        ESP_LOGI(TAG, "download OK!");
-      } else {
-        ESP_LOGE(TAG, "http result code != 200");
-        goto failed;
-      }
-
+  if (result == 200) {
+    ESP_LOGI(TAG, "download OK!");
   } else {
-      ESP_LOGE(TAG, "Could not malloc response buffer");
-      return -100;
+    ESP_LOGE(TAG, "http result code != 200");
+    goto failed;
   }
 
   ESP_LOGI(TAG, "download file %s success!", filename);
-  free(resp_buf);
   return 0;
 
-failed:
-  free(resp_buf);
-  return ret;
+  failed:
+  return r;
 }
