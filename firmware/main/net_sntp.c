@@ -67,7 +67,7 @@ void net_sntp_sync(void)
 
         // update 'now' variable with current time
         time(&now);
-      }
+    }
 
     if (sntp_get_sync_mode() == SNTP_SYNC_MODE_SMOOTH) {
         struct timeval outdelta;
@@ -85,22 +85,32 @@ void net_sntp_sync(void)
 void net_sntp_obtain_time(void)
 {
     // wait for time to be set
-    time_t now = 0;
-    struct tm timeinfo = { 0 };
     int retry = 0;
     const int retry_count = 10;
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ESP_LOGD(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
-    time(&now);
-    localtime_r(&now, &timeinfo);
+
+    if (retry < retry_count) {
+      char strftime_buf[64];
+      time_t now = 0;
+      struct tm timeinfo = { 0 };
+
+      time(&now);
+      localtime_r(&now, &timeinfo);
+      strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+      ESP_LOGI(TAG, "Initial time synced, time is: %s", strftime_buf);
+
+      sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+    }
 }
 
 void net_sntp_init(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
 
+    esp_log_level_set(TAG, ESP_LOG_DEBUG);
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
@@ -108,12 +118,11 @@ void net_sntp_init(void)
     config_get_string("ntp_server", &conf_ntp_server, "pool.ntp.org");
     ESP_LOGI(TAG, "ntp server is %s", conf_ntp_server);
 
-    esp_log_level_set(TAG, ESP_LOG_WARN);
 
     sntp_setservername(0, conf_ntp_server);
     free(conf_ntp_server);
 
     sntp_set_time_sync_notification_cb(net_sntp_sync_cb);
-    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+    sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
     sntp_init();
 }
