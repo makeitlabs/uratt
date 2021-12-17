@@ -138,7 +138,9 @@ void main_task(void *pvParameters)
     switch(state) {
     case STATE_INIT:
       display_user_msg("Micro-RATT");
-      beep_queue(2000, 200, 1, 1);
+      beep_queue(1108, 35, 1, 1);
+      beep_queue(1244, 35, 1, 1);
+      beep_queue(1864, 35, 1, 1);
 
       state = STATE_INITIAL_LOCK;
       break;
