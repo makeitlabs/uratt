@@ -402,7 +402,6 @@ void net_task(void *pvParameters)
             net_mqtt_start();
             net_cmd_queue(NET_CMD_NTP_SYNC);
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
-            //net_cmd_queue(NET_CMD_OTA_UPDATE);
             break;
 
           case NET_CMD_DISCONNECT:

@@ -59,17 +59,24 @@ void net_ota_update(void)
         .event_handler = _http_event_handler,
     };
 
+    char *conf_ota_url;
+    config_get_string("ota_url", &conf_ota_url, "https://my-server.org/ota.bin");
+    config.url = conf_ota_url;
+
 #ifdef CONFIG_SKIP_COMMON_NAME_CHECK
     config.skip_cert_common_name_check = true;
 #endif
 
     esp_err_t ret = esp_https_ota(&config);
+
+    free(conf_ota_url);
+
     if (ret == ESP_OK) {
         esp_restart();
+        while (1) {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
     } else {
         ESP_LOGE(TAG, "Firmware upgrade failed");
-    }
-    while (1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
