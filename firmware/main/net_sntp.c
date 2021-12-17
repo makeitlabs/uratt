@@ -16,10 +16,9 @@
 #include "esp_attr.h"
 #include "esp_sleep.h"
 #include "nvs_flash.h"
-
 #include "esp_sntp.h"
-
 #include "net_sntp.h"
+#include "config.h"
 
 static const char *TAG = "net_sntp";
 
@@ -39,12 +38,18 @@ void net_sntp_sync_cb(struct timeval *tv)
     struct tm timeinfo;
     time_t now;
 
-    setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
+    char *conf_tz;
+    config_get_string("tz", &conf_tz, "EST5EDT,M3.2.0/2,M11.1.0");
+    setenv("TZ", conf_tz, 1);
+
     tzset();
     time(&now);
     localtime_r(&now, &timeinfo);
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    ESP_LOGI(TAG, "Time synced, EST5EDT time is: %s", strftime_buf);
+
+    ESP_LOGI(TAG, "Time synced, %s time is: %s", conf_tz, strftime_buf);
+
+    free(conf_tz);
 }
 
 void net_sntp_sync(void)
@@ -86,7 +91,7 @@ void net_sntp_obtain_time(void)
     const int retry_count = 10;
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     time(&now);
     localtime_r(&now, &timeinfo);
@@ -96,13 +101,19 @@ void net_sntp_init(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
 
-    esp_log_level_set(TAG, ESP_LOG_WARN);
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
+
+    char *conf_ntp_server;
+    config_get_string("ntp_server", &conf_ntp_server, "pool.ntp.org");
+    ESP_LOGI(TAG, "ntp server is %s", conf_ntp_server);
+
+    esp_log_level_set(TAG, ESP_LOG_WARN);
+
+    sntp_setservername(0, conf_ntp_server);
+    free(conf_ntp_server);
+
     sntp_set_time_sync_notification_cb(net_sntp_sync_cb);
-
     sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
-
     sntp_init();
 }
