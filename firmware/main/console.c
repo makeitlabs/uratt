@@ -52,6 +52,12 @@
 
 static char* prompt = LOG_COLOR_I "uRATT> " LOG_RESET_COLOR;
 
+static void console_register_cmd_log(void);
+static void console_register_cmd_nvs_dump(void);
+static void console_register_cmd_nvs_set(void);
+static void console_register_cmd_nvs_erase(void);
+static void console_register_cmd_reset(void);
+
 void console_init(void)
 {
     /* Drain stdout before reconfiguring it */
@@ -117,6 +123,8 @@ void console_init(void)
     console_register_cmd_log();
     console_register_cmd_nvs_dump();
     console_register_cmd_nvs_set();
+    console_register_cmd_nvs_erase();
+    console_register_cmd_reset();
 
     printf("\n\n"
            "Welcome to MakeIt Labs uRATT - RFID All The Things!\n"
@@ -276,8 +284,46 @@ static int nvs_set(int argc, char **argv)
 }
 
 
+static struct {
+    struct arg_str *namespace;
+    struct arg_str *key;
+    struct arg_end *end;
+} nvs_erase_args;
+static int nvs_erase(int argc, char **argv)
+{
+  int nerrors = arg_parse(argc, argv, (void **) &nvs_erase_args);
+  if (nerrors != 0) {
+      arg_print_errors(stderr, nvs_erase_args.end, argv[0]);
+      return 1;
+  }
 
-void console_register_cmd_log(void)
+  nvs_handle_t hdl;
+  esp_err_t r = nvs_open(nvs_erase_args.namespace->sval[0], NVS_READWRITE, &hdl);
+  if (r != ESP_OK) {
+    printf("\nNVS open error: %s\n", esp_err_to_name(r));
+    return r;
+  }
+
+  r = nvs_erase_key(hdl, nvs_erase_args.key->sval[0]);
+
+  if (r != ESP_OK) {
+    printf("\nNVS erase key error error: %s", esp_err_to_name(r));
+    nvs_close(hdl);
+    return r;
+  }
+
+  nvs_close(hdl);
+  return ESP_OK;
+}
+
+
+static int system_reset(int argc, char **argv)
+{
+  esp_restart();
+  return ESP_OK;
+}
+
+static void console_register_cmd_log(void)
 {
     log_args.tag = arg_str1(NULL, NULL, "<tag>", "TAG of module to change, * to reset all to a given level");
     log_args.level = arg_str1(NULL, NULL, "<level>", "Log level to set (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)");
@@ -295,7 +341,7 @@ void console_register_cmd_log(void)
 }
 
 
-void console_register_cmd_nvs_dump(void)
+static void console_register_cmd_nvs_dump(void)
 {
   nvs_dump_args.namespace = arg_str1(NULL, NULL, "<namespace>", "NVS namespace");
   nvs_dump_args.end = arg_end(2);
@@ -312,14 +358,14 @@ void console_register_cmd_nvs_dump(void)
 }
 
 
-void console_register_cmd_nvs_set(void)
+static void console_register_cmd_nvs_set(void)
 {
   nvs_set_args.namespace = arg_str1(NULL, NULL, "<namespace>", "NVS namespace");
   nvs_set_args.key = arg_str1(NULL, NULL, "<key>", "item key name");
   nvs_set_args.value = arg_str1(NULL, NULL, "<value>", "item value (string)");
   nvs_set_args.end = arg_end(2);
 
-  const esp_console_cmd_t nvs_dump_cmd = {
+  const esp_console_cmd_t nvs_set_cmd = {
       .command = "nvs_set",
       .help = "Set NVS key:value pair in namespace",
       .hint = NULL,
@@ -327,9 +373,40 @@ void console_register_cmd_nvs_set(void)
       .argtable = &nvs_set_args
   };
 
-  ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_dump_cmd) );
+  ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_set_cmd) );
 }
 
+static void console_register_cmd_nvs_erase(void)
+{
+  nvs_erase_args.namespace = arg_str1(NULL, NULL, "<namespace>", "NVS namespace");
+  nvs_erase_args.key = arg_str1(NULL, NULL, "<key>", "item key name");
+  nvs_erase_args.end = arg_end(2);
+
+  const esp_console_cmd_t nvs_erase_cmd = {
+      .command = "nvs_erase",
+      .help = "Erase NVS key pair in namespace",
+      .hint = NULL,
+      .func = &nvs_erase,
+      .argtable = &nvs_erase_args
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&nvs_erase_cmd) );
+}
+
+
+static void console_register_cmd_reset(void)
+{
+
+  const esp_console_cmd_t reset_cmd = {
+      .command = "reset",
+      .help = "Reset ESP32 system",
+      .hint = NULL,
+      .func = &system_reset,
+      .argtable = NULL
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&reset_cmd) );
+}
 
 
 int console_poll(void)

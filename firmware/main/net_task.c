@@ -47,6 +47,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_netif.h"
+#include "config.h"
 #include "https.h"
 #include "sdcard.h"
 
@@ -67,7 +68,6 @@
 #include "mbedtls/certs.h"
 #include "mbedtls/base64.h"
 
-
 #include "display_task.h"
 #include "rfid_task.h"
 #include "net_certs.h"
@@ -83,6 +83,7 @@ void net_timer(TimerHandle_t xTimer);
 
 
 #define NR_OF_IP_ADDRESSES_TO_WAIT_FOR (s_active_interfaces)
+
 
 static int s_active_interfaces = 0;
 static xSemaphoreHandle s_semph_get_ip_addrs;
@@ -193,16 +194,25 @@ static esp_netif_t *net_wifi_start(void)
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));
 
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+
+
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = CONFIG_WIFI_SSID,
-            .password = CONFIG_WIFI_PASSWORD,
             .scan_method = WIFI_FAST_SCAN,
             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
             .threshold.rssi = -127,
             .threshold.authmode = WIFI_AUTH_WPA_PSK,
         },
     };
+
+    char *conf_ssid;
+    char *conf_password;
+    config_get_string("wifi_ssid", &conf_ssid, "ssid");
+    config_get_string("wifi_password", &conf_password, "password");
+    strncpy((char*)wifi_config.sta.ssid, conf_ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char*)wifi_config.sta.password, conf_password, sizeof(wifi_config.sta.password));
+    free(conf_ssid);
+    free(conf_password);
 
     ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -315,6 +325,8 @@ BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
 void net_init(void)
 {
     ESP_LOGI(TAG, "Initializing network task...");
+
+
 
     display_net_msg("WIFI INIT");
 
