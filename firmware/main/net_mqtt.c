@@ -45,6 +45,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "config.h"
 #include "https.h"
 #include "sdcard.h"
 
@@ -106,8 +107,11 @@ void net_mqtt_send_wifi_strength(void)
       (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] / 1000 : 0, (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] % 1000 : 0,
       wifidata.ssid,
       wifidata.rssi);
-    int msg_id = esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0);
-    ESP_LOGI(TAG, "published wifi status id=%d", msg_id);
+    if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
+      ESP_LOGI(TAG, "published wifi status");
+    } else {
+      ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+    }
 
     free(topic);
     free(payload);
@@ -126,8 +130,11 @@ void net_mqtt_send_acl_updated(char* status)
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "acl/update", topic, 128);
 
   snprintf(payload, 128, "{\"status\":\"%s\"}", status);
-  int msg_id = esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0);
-  ESP_LOGI(TAG, "published acl update status id=%d", msg_id);
+  if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGI(TAG, "published acl update status");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
 
   free(topic);
   free(payload);
@@ -143,8 +150,11 @@ void net_mqtt_send_access(char *member, int allowed)
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
   snprintf(payload, 128, "{\"member\": \"%s\", \"allowed\": %s}", member, allowed ? "true" : "false");
-  int msg_id = esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0);
-  ESP_LOGI(TAG, "published personality access id=%d", msg_id);
+  if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGI(TAG, "published personality access");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
 
   free(topic);
   free(payload);
@@ -159,8 +169,11 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
   snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
-  int msg_id = esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0);
-  ESP_LOGI(TAG, "published personality access error id=%d", msg_id);
+  if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGI(TAG, "published personality access error");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
 
   free(topic);
   free(payload);
@@ -174,37 +187,37 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
     // your_context_t *context = event->context;
     switch (event->event_id) {
         case MQTT_EVENT_CONNECTED:
-            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            ESP_LOGI(TAG, "Connected to MQTT broker");
             msg_id = esp_mqtt_client_subscribe(client, "ratt/control/broadcast/acl/update", 0);
-            ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+            ESP_LOGD(TAG, "sent subscribe successful, msg_id=%d", msg_id);
             break;
         case MQTT_EVENT_DISCONNECTED:
-            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            ESP_LOGI(TAG, "Disconnected from MQTT broker");
             break;
 
         case MQTT_EVENT_SUBSCRIBED:
-            ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+            ESP_LOGD(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
             //msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
             //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
-            ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+            ESP_LOGD(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
             break;
         case MQTT_EVENT_PUBLISHED:
-            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            ESP_LOGD(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
             break;
         case MQTT_EVENT_DATA:
-            ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-            ESP_LOGI(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            ESP_LOGI(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
+            ESP_LOGD(TAG, "MQTT_EVENT_DATA");
+            ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
 
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
             break;
         case MQTT_EVENT_ERROR:
-            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            ESP_LOGE(TAG, "MQTT_EVENT_ERROR");
             break;
         default:
-            ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+            ESP_LOGD(TAG, "Other event id:%d", event->event_id);
             break;
     }
     return ESP_OK;
@@ -213,17 +226,17 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 int net_mqtt_init(void)
 {
-  ESP_LOGI(TAG, "net_mqtt init");
+  ESP_LOGI(TAG, "Initializing MQTT...");
 
-  esp_log_level_set("*", ESP_LOG_INFO);
-  esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
-  esp_log_level_set("TRANSPORT_TCP", ESP_LOG_VERBOSE);
-  esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
-  esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
-  esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
+  esp_log_level_set(TAG, ESP_LOG_INFO);
 
-  const esp_mqtt_client_config_t mqtt_cfg = {
-      .uri = "mqtts://auth.makeitlabs.com:21883",
+  esp_log_level_set("MQTT_CLIENT", ESP_LOG_WARN);
+  esp_log_level_set("TRANSPORT_TCP", ESP_LOG_WARN);
+  esp_log_level_set("TRANSPORT_SSL", ESP_LOG_WARN);
+  esp_log_level_set("TRANSPORT", ESP_LOG_WARN);
+  esp_log_level_set("OUTBOX", ESP_LOG_WARN);
+
+  esp_mqtt_client_config_t mqtt_cfg = {
       .event_handle = net_mqtt_event_handler,
       .client_cert_pem = g_client_cert,
       .client_key_pem = g_client_key,
@@ -231,7 +244,11 @@ int net_mqtt_init(void)
       .skip_cert_common_name_check = true,
   };
 
-  ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+  char *conf_mqtt_broker;
+  config_get_string("mqtt_broker", &conf_mqtt_broker, "mqtts://my-mqtt-server.org:1883");
+  mqtt_cfg.uri = conf_mqtt_broker;
+  // note, this will never get freed (conf_mqtt_broker)
+
   mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
 
   return 0;

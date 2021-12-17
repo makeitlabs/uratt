@@ -95,6 +95,9 @@ void net_sntp_obtain_time(void)
 void net_sntp_init(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
+
+    esp_log_level_set(TAG, ESP_LOG_WARN);
+
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
     sntp_set_time_sync_notification_cb(net_sntp_sync_cb);

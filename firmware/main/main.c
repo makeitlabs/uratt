@@ -117,6 +117,9 @@ void app_main(void)
     xTaskCreate(&net_task, "net_task", 8192, NULL, 7, NULL);
     xTaskCreate(&main_task, "main_task", 4096, NULL, 7, NULL);
 
+    ESP_LOGD(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+
+
     console_init();
 
     while (true) {

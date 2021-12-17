@@ -104,7 +104,7 @@ int net_https_download_acl()
       FILE* file = fopen("/sdcard/acl-temp.txt", "w");
 
       if (file) {
-          ESP_LOGI(TAG, "URL: %s", web_url);
+          ESP_LOGI(TAG, "download ACL from URL: %s", web_url);
           r = http_get(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, resp_buf, RESP_BUF_SIZE, file);
 
           ESP_LOGI(TAG, "http_get returned %d", r);
@@ -182,7 +182,7 @@ int net_https_get_file(const char *web_url, const char *filename)
       FILE* file = fopen(filename, "w");
 
       if (file) {
-          ESP_LOGI(TAG, "URL: %s", web_url);
+          ESP_LOGI(TAG, "get file from URL: %s", web_url);
           r = http_get(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, resp_buf, RESP_BUF_SIZE, file);
 
           ESP_LOGI(TAG, "http_get returned %d", r);

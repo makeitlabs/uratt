@@ -356,6 +356,12 @@ void net_init(void)
 {
     ESP_LOGI(TAG, "Initializing network task...");
 
+    esp_log_level_set(TAG, ESP_LOG_INFO);
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
+    esp_log_level_set("wifi_init", ESP_LOG_ERROR);
+    esp_log_level_set("phy_init", ESP_LOG_WARN);
+    esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
+
     display_net_msg("WIFI INIT");
 
     m_q = xQueueCreate(NET_QUEUE_DEPTH, sizeof(net_evt_t));
