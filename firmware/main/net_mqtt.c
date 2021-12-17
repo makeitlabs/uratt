@@ -228,7 +228,6 @@ int net_mqtt_init(void)
 {
   ESP_LOGI(TAG, "Initializing MQTT...");
 
-  esp_log_level_set(TAG, ESP_LOG_INFO);
 
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_WARN);
   esp_log_level_set("TRANSPORT_TCP", ESP_LOG_WARN);
@@ -246,9 +245,14 @@ int net_mqtt_init(void)
 
   char *conf_mqtt_broker;
   config_get_string("mqtt_broker", &conf_mqtt_broker, "mqtts://my-mqtt-server.org:1883");
+
+  ESP_LOGI(TAG, "MQTT broker is %s", conf_mqtt_broker);
+
   mqtt_cfg.uri = conf_mqtt_broker;
 
   mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+
+  esp_log_level_set(TAG, ESP_LOG_WARN);
 
   free(conf_mqtt_broker);
 
