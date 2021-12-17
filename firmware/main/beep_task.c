@@ -113,19 +113,8 @@ void beep_init(void)
       .intr_type = GPIO_INTR_DISABLE
   };
 
-  ESP_LOGI(TAG, "GPIO configuration...");
   gpio_config(&beep_gpio_cfg);
 
-/*
-  for (unsigned int i=0; i<500; i++) {
-    gpio_set_level(GPIO_PIN_BEEPER, 1);
-    bdelay(10);
-    gpio_set_level(GPIO_PIN_BEEPER, 0);
-    bdelay(10);
-  }
-*/
-
-  ESP_LOGI(TAG, "LEDC configuration...");
   ledc_timer_config(&ledc_beep);
   ledc_channel_config(&ledc_channel);
 
@@ -165,7 +154,7 @@ void beep_task(void *pvParameters)
         beep_evt_t evt;
 
         if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
-            ESP_LOGI(TAG, "beep event hz=%d attack=%d msec=%d decay=%d\n", evt.hz, evt.attack, evt.msec, evt.decay);
+            ESP_LOGD(TAG, "beep event hz=%d attack=%d msec=%d decay=%d\n", evt.hz, evt.attack, evt.msec, evt.decay);
             beep_start(evt.hz, evt.attack);
             beep_delay(evt.msec + evt.attack);
             beep_stop(evt.decay);
