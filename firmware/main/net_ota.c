@@ -10,6 +10,7 @@
 #include "net_ota.h"
 #include "net_certs.h"
 #include "esp_wifi.h"
+#include "config.h"
 
 static const char *TAG = "ota_task";
 
