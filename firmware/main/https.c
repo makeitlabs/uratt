@@ -85,7 +85,7 @@ static int _error;
 /*---------------------------------------------------------------------*/
 char *strtoken(char *src, char *dst, int size);
 
-static int parse_url(char *src_url, int *https, char *host, char *port, char *url);
+static int parse_url(const char *src_url, int *https, char *host, char *port, char *url);
 static int http_header(HTTP_INFO *hi, char *param);
 static int http_parse(HTTP_INFO *hi);
 
@@ -98,8 +98,8 @@ static int https_read(HTTP_INFO *hi, char *buffer, size_t len);
 int http_init(int id);
 int http_close(int id);
 
-int http_get(int id, char *url, char *auth_user, char *auth_pass, char *response, int size, FILE *fp);
-int http_post(int id, char *url, char *data, char *response, int size);
+int http_get(int id, const char *url, const char *auth_user, const char *auth_pass, char *response, int size, FILE *fp);
+int http_post(int id, const char *url, const char *data, char *response, int size);
 
 void http_strerror(char *buf, int len);
 int http_open_chunked(int id, char *url, char *auth_user, char *auth_pass);
@@ -153,7 +153,7 @@ char *strtoken(char *src, char *dst, int size)
 }
 
 /*---------------------------------------------------------------------*/
-static int parse_url(char *src_url, int *https, char *host, char *port, char *url)
+static int parse_url(const char *src_url, int *https, char *host, char *port, char *url)
 {
     char *p1, *p2;
     char str[1024];
@@ -161,13 +161,13 @@ static int parse_url(char *src_url, int *https, char *host, char *port, char *ur
     memset(str, 0, 1024);
 
     if(strncmp(src_url, "http://", 7)==0) {
-        p1=&src_url[7];
+        p1=(char *)&src_url[7];
         *https = 0;
     } else if(strncmp(src_url, "https://", 8)==0) {
-        p1=&src_url[8];
+        p1=(char *)&src_url[8];
         *https = 1;
     } else {
-        p1 = &src_url[0];
+        p1 = (char *)&src_url[0];
         *https = 0;
     }
 
@@ -750,7 +750,7 @@ int http_close(int id)
 }
 
 /*---------------------------------------------------------------------*/
-int http_get(int id, char *url, char *auth_user, char *auth_pass, char *response, int size, FILE* fp)
+int http_get(int id, const char *url, const char *auth_user, const char *auth_pass, char *response, int size, FILE* fp)
 {
     HTTP_INFO   *hi;
     char        request[2048], err[100];
@@ -923,7 +923,7 @@ int http_get(int id, char *url, char *auth_user, char *auth_pass, char *response
 }
 
 /*---------------------------------------------------------------------*/
-int http_post(int id, char *url, char *data, char *response, int size)
+int http_post(int id, const char *url, const char *data, char *response, int size)
 {
     HTTP_INFO   *hi;
     char        request[1024], err[100];

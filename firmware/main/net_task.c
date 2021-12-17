@@ -296,7 +296,7 @@ esp_err_t net_disconnect(void)
     return ESP_OK;
 }
 
-BaseType_t net_cmd_queue(int cmd)
+esp_err_t net_cmd_queue(int cmd)
 {
     net_evt_t evt;
     evt.cmd = cmd;
@@ -305,7 +305,7 @@ BaseType_t net_cmd_queue(int cmd)
     return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }
 
-BaseType_t net_cmd_queue_access(char *member, int allowed)
+esp_err_t net_cmd_queue_access(char *member, int allowed)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_SEND_ACCESS;
@@ -319,7 +319,7 @@ BaseType_t net_cmd_queue_access(char *member, int allowed)
     return ESP_ERR_NO_MEM;
 }
 
-BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
+esp_err_t net_cmd_queue_access_error(char *err, char *err_ext)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_SEND_ACCESS_ERROR;
@@ -335,7 +335,7 @@ BaseType_t net_cmd_queue_access_error(char *err, char *err_ext)
     return ESP_ERR_NO_MEM;
 }
 
-BaseType_t net_cmd_queue_wget(char *url, char *filename)
+esp_err_t net_cmd_queue_wget(char *url, char *filename)
 {
     net_evt_t evt;
     evt.cmd = NET_CMD_WGET;

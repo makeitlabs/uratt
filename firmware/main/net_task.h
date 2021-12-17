@@ -43,10 +43,10 @@ void net_task(void *pvParameters);
 esp_err_t net_connect(void);
 esp_err_t net_disconnect(void);
 
-BaseType_t net_cmd_queue(int cmd);
-BaseType_t net_cmd_queue_access(char *member, int allowed);
-BaseType_t net_cmd_queue_access_error(char *err, char *err_ext);
-BaseType_t net_cmd_queue_wget(char *url, char *filename);
+esp_err_t net_cmd_queue(int cmd);
+esp_err_t net_cmd_queue_access(char *member, int allowed);
+esp_err_t net_cmd_queue_access_error(char *err, char *err_ext);
+esp_err_t net_cmd_queue_wget(char *url, char *filename);
 
 #define NET_CMD_INIT 0
 #define NET_CMD_DISCONNECT 1
