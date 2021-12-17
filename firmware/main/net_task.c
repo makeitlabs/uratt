@@ -474,11 +474,11 @@ void net_timer(TimerHandle_t xTimer)
     if (esp_wifi_sta_get_ap_info(&wifidata)==0){
         display_wifi_rssi(wifidata.rssi);
 
-        if (interval % 30 == 0) {
+        if (interval % 60 == 0) {
           net_cmd_queue(NET_CMD_SEND_WIFI_STR);
         }
 
-        if (interval % 62 == 0) {
+        if (interval % 600 == 0) {
           net_cmd_queue(NET_CMD_NTP_SYNC);
         }
         interval++;
