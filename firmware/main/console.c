@@ -53,7 +53,7 @@
 
 #include "net_task.h"
 
-static char* prompt = LOG_COLOR_I "uRATT> " LOG_RESET_COLOR;
+static char prompt[80];
 
 static void console_register_cmd_log(void);
 static void console_register_cmd_nvs_dump(void);
@@ -144,11 +144,13 @@ void console_init(void)
     /* Figure out if the terminal supports escape sequences */
     int probe_status = linenoiseProbe();
     if (probe_status) { /* zero indicates success */
-       printf("\n"
-              "Your terminal application does not support escape sequences.\n"
-              "Line editing and history features are disabled.\n");
-       linenoiseSetDumbMode(1);
-       prompt = "uRATT> ";
+      printf("\n"
+            "Your terminal application does not support escape sequences.\n"
+            "Line editing and history features are disabled.\n");
+      linenoiseSetDumbMode(1);
+      snprintf(prompt, sizeof(prompt), "uRATT %2x%2x%2x%2x%2x%2x> ", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
+    } else {
+      snprintf(prompt, sizeof(prompt), "\033[1;34muRATT \033[0;36m%2x%2x%2x%2x%2x%2x\033[0;37m> ", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
     }
 }
 
@@ -238,13 +240,18 @@ static int nvs_dump(int argc, char **argv)
       nvs_entry_info(it, &info);
       it = nvs_entry_next(it);
       printf("%s.%s=", info.namespace_name, info.key);
+
       switch(info.type) {
         case NVS_TYPE_STR:
           {
             char s[128];
             size_t len = sizeof(s);
             nvs_get_str(hdl, info.key, s, &len);
-            printf("\"%s\"", s);
+            if (strstr(info.key, "password") == NULL) {
+              printf("\"%s\"", s);
+            } else {
+              printf("<not shown>");
+            }
           }
           break;
         default:
