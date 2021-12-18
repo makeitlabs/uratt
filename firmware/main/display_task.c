@@ -47,12 +47,12 @@
 #include "display_lvgl.h"
 #include "lvgl.h"
 #include "beep_task.h"
+#include "ui_splash.h"
 
 static const char *TAG = "display_task";
 
 static lv_obj_t *s_scr;
 
-extern void lvgl_demo_ui(lv_obj_t *scr);
 
 #define DISPLAY_QUEUE_DEPTH 8
 #define DISPLAY_EVT_BUF_SIZE 32
@@ -140,7 +140,6 @@ BaseType_t display_redraw_bg()
 
 void display_init()
 {
-
     gpio_set_direction(GPIO_PIN_FP_BUTTON, GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_PIN_FP_BUTTON);
 
@@ -148,6 +147,9 @@ void display_init()
     if (m_q == NULL) {
         ESP_LOGE(TAG, "FATAL: Cannot create display queue!");
     }
+
+    s_scr = display_lvgl_init_scr();
+    ui_splash_create(s_scr);
 
 }
 
@@ -158,18 +160,13 @@ void display_init_bg(void)
 
 void display_task(void *pvParameters)
 {
-    portTickType last_heartbeat_tick;
-
-    last_heartbeat_tick = xTaskGetTickCount();
-
-    s_scr = display_lvgl_init_scr();
+    portTickType init_tick = xTaskGetTickCount();
+    portTickType last_heartbeat_tick = init_tick;
+    int button=0, last_button=0;
+    bool splash_shown = true;
 
     display_init_bg();
 
-    lvgl_demo_ui(s_scr);
-
-
-    int button=0, last_button=0;
     while(1) {
         display_evt_t evt;
 
@@ -215,6 +212,13 @@ void display_task(void *pvParameters)
         }
 
         portTickType now = xTaskGetTickCount();
+
+        if (splash_shown && now - init_tick >= (8000/portTICK_PERIOD_MS)) {
+          ui_splash_destroy();
+          splash_shown = false;
+        }
+
+
         if (now - last_heartbeat_tick >= (500/portTICK_PERIOD_MS)) {
             // heartbeat
 
