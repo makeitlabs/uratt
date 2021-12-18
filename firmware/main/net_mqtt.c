@@ -108,7 +108,7 @@ void net_mqtt_send_wifi_strength(void)
       wifidata.ssid,
       wifidata.rssi);
     if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
-      ESP_LOGI(TAG, "published wifi status");
+      ESP_LOGD(TAG, "published wifi status");
     } else {
       ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
     }
@@ -131,7 +131,7 @@ void net_mqtt_send_acl_updated(char* status)
 
   snprintf(payload, 128, "{\"status\":\"%s\"}", status);
   if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
-    ESP_LOGI(TAG, "published acl update status");
+    ESP_LOGD(TAG, "published acl update status");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
@@ -151,7 +151,7 @@ void net_mqtt_send_access(char *member, int allowed)
 
   snprintf(payload, 128, "{\"member\": \"%s\", \"allowed\": %s}", member, allowed ? "true" : "false");
   if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
-    ESP_LOGI(TAG, "published personality access");
+    ESP_LOGD(TAG, "published personality access");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
@@ -170,7 +170,7 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 
   snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
   if (esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 2, 0) != -1) {
-    ESP_LOGI(TAG, "published personality access error");
+    ESP_LOGD(TAG, "published personality access error");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
@@ -228,7 +228,6 @@ int net_mqtt_init(void)
 {
   ESP_LOGI(TAG, "Initializing MQTT...");
 
-
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_WARN);
   esp_log_level_set("TRANSPORT_TCP", ESP_LOG_WARN);
   esp_log_level_set("TRANSPORT_SSL", ESP_LOG_WARN);
@@ -252,7 +251,7 @@ int net_mqtt_init(void)
 
   mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
 
-  esp_log_level_set(TAG, ESP_LOG_WARN);
+  esp_log_level_set(TAG, ESP_LOG_INFO);
 
   free(conf_mqtt_broker);
 

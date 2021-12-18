@@ -57,9 +57,8 @@ esp_err_t net_cmd_queue_wget(char *url, char *filename);
 #define NET_CMD_SEND_WIFI_STR 6
 #define NET_CMD_SEND_ACCESS 7
 #define NET_CMD_SEND_ACCESS_ERROR 8
-#define NET_CMD_NTP_SYNC 9
-#define NET_CMD_OTA_UPDATE 10
-#define NET_CMD_WGET 11
+#define NET_CMD_OTA_UPDATE 9
+#define NET_CMD_WGET 10
 
 extern uint8_t g_mac_addr[6];
 

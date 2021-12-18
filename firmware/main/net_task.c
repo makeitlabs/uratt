@@ -377,7 +377,6 @@ void net_init(void)
     net_certs_init();
     net_https_init();
     net_mqtt_init();
-    net_sntp_init();
     net_ota_init();
 
     TimerHandle_t timer = xTimerCreate("rssi_timer", (1000 / portTICK_PERIOD_MS), pdTRUE, (void*) 0, net_timer);
@@ -399,12 +398,13 @@ void net_task(void *pvParameters)
       if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
         switch(evt.cmd) {
           case NET_CMD_INIT:
+            net_sntp_init();
             net_mqtt_start();
-            net_cmd_queue(NET_CMD_NTP_SYNC);
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
             break;
 
           case NET_CMD_DISCONNECT:
+            net_sntp_stop();
             net_mqtt_stop();
             net_disconnect();
             break;
@@ -445,10 +445,6 @@ void net_task(void *pvParameters)
             free(evt.params.buf2);
             break;
 
-          case NET_CMD_NTP_SYNC:
-            net_sntp_sync();
-            break;
-
           case NET_CMD_OTA_UPDATE:
             net_ota_update();
             break;
@@ -479,9 +475,6 @@ void net_timer(TimerHandle_t xTimer)
           net_cmd_queue(NET_CMD_SEND_WIFI_STR);
         }
 
-        if (interval % 600 == 0) {
-          net_cmd_queue(NET_CMD_NTP_SYNC);
-        }
         interval++;
 
     }
