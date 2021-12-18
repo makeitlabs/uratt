@@ -49,7 +49,6 @@
 #include "sdcard.h"
 #include "spiflash.h"
 #include "display_task.h"
-#include "lcd_st7735.h"
 #include "net_task.h"
 #include "rfid_task.h"
 #include "door_task.h"
@@ -97,7 +96,6 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     system_init();
-    lcd_hw_init();
     display_init();
     beep_init();
     door_init();

@@ -47,7 +47,6 @@
 #include "system_task.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
-#include "lcd_st7735.h"
 #include "display_task.h"
 #include "net_task.h"
 
@@ -157,8 +156,8 @@ void system_task(void *pvParameters)
 
           gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
 
-          lcd_reset();
-          lcd_set_backlight(OFF);
+          //lcd_reset();
+          //lcd_set_backlight(OFF);
 
 
           esp_light_sleep_start();
@@ -167,11 +166,12 @@ void system_task(void *pvParameters)
 
           gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
 
-          lcd_reset();
-          lcd_reinit();
+          //lcd_reset();
+          //lcd_reinit();
 
           display_redraw_bg();
-          lcd_set_backlight(ON);
+
+          //lcd_set_backlight(ON);
 
           net_cmd_queue(NET_CMD_CONNECT);
 

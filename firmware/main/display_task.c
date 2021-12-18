@@ -43,19 +43,19 @@
 #include "driver/gpio.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include "lcd_st7735.h"
-#include "FontAtari8.h"
 #include "system.h"
+#include "display_lvgl.h"
+#include "lvgl.h"
 #include "beep_task.h"
 
 static const char *TAG = "display_task";
 
+static lv_obj_t *s_scr;
+
+extern void lvgl_demo_ui(lv_obj_t *scr);
+
 #define DISPLAY_QUEUE_DEPTH 8
 #define DISPLAY_EVT_BUF_SIZE 32
-
-
-#define SPIN_LENGTH 4
-static char *m_spin[] = { "\x03", "\x09", " ", "\x09" };
 
 typedef enum {
     DISP_CMD_WIFI_MSG = 0x00,
@@ -77,7 +77,6 @@ typedef struct display_evt {
 } display_evt_t;
 
 static QueueHandle_t m_q;
-
 
 BaseType_t display_wifi_msg(char *msg)
 {
@@ -141,6 +140,7 @@ BaseType_t display_redraw_bg()
 
 void display_init()
 {
+
     gpio_set_direction(GPIO_PIN_FP_BUTTON, GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_PIN_FP_BUTTON);
 
@@ -153,29 +153,21 @@ void display_init()
 
 void display_init_bg(void)
 {
-  lcd_fill_screen(lcd_rgb(0x00, 0x00, 0xC0));
-  lcd_fill_rect(0, 0, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
-  lcd_fill_rect(0, 17, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
-
-  lcd_fill_rect(0, 63, 160, 1, lcd_rgb(0x00, 0x00, 0x00));
-  lcd_fill_rect(0, 64, 160, 16, lcd_rgb(0xFF, 0xFF, 0xFF));
-
-  gfx_set_font(&Atari8);
-  gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
-  gfx_write_string(0, 64, "RSSI");
-  gfx_refresh();
+  // init bg
 }
 
 void display_task(void *pvParameters)
 {
-    uint8_t spin_idx = 0;
-    char s[32];
     portTickType last_heartbeat_tick;
 
     last_heartbeat_tick = xTaskGetTickCount();
 
-    lcd_init();
+    s_scr = display_lvgl_init_scr();
+
     display_init_bg();
+
+    lvgl_demo_ui(s_scr);
+
 
     int button=0, last_button=0;
     while(1) {
@@ -193,64 +185,31 @@ void display_task(void *pvParameters)
         last_button = button;
         // end button test
 
+        display_lvgl_periodic();
 
-        if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
+        if (xQueueReceive(m_q, &evt, (10 / portTICK_PERIOD_MS)) == pdPASS) {
             switch(evt.cmd) {
             case DISP_CMD_WIFI_MSG:
-                gfx_set_font(NULL);
-                lcd_fill_rect(0, 0, 160, 8, lcd_rgb(0xFF, 0xFF, 0xFF));
-                gfx_set_font(&Atari8);
-                gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
-                gfx_write_string(0, 0, evt.buf);
-                gfx_refresh_rect(0, 0, 128, 8);
+                // evt.buf is msg
                 break;
             case DISP_CMD_WIFI_RSSI:
-                gfx_set_font(NULL);
-                lcd_fill_rect(0, 72, 32, 8, lcd_rgb(0xFF, 0xFF, 0xFF));
-                gfx_set_font(&Atari8);
-                gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
-                snprintf(s, sizeof(s), "%d", evt.params.rssi);
-                gfx_write_string(0, 72, s);
-                gfx_refresh_rect(0, 72, 32, 8);
+                // evt.params.rssi is int rssi
                 break;
             case DISP_CMD_NET_MSG:
-                gfx_set_font(NULL);
-                lcd_fill_rect(0, 8, 160, 8, lcd_rgb(0xFF, 0xFF, 0xFF));
-                gfx_set_font(&Atari8);
-                gfx_set_text_color(lcd_rgb(0x00, 0x00, 0x00));
-                gfx_write_string(0, 8, evt.buf);
-                gfx_refresh_rect(0, 8, 128, 8);
+                // evt.buf is msg
                 break;
             case DISP_CMD_USER_MSG:
-                gfx_set_font(NULL);
-                lcd_fill_rect(0, 24, 160, 8, lcd_rgb(0x00, 0x00, 0xC0));
-                gfx_set_font(&Atari8);
-                gfx_set_text_color(lcd_rgb(0xFF, 0xFF, 0xFF));
-                gfx_write_string(0, 24, evt.buf);
-                gfx_refresh_rect(0, 24, 128, 8);
+                // evt.buf is msg
                 break;
             case DISP_CMD_ALLOWED_MSG:
-                gfx_set_font(&Atari8);
-                lcd_fill_rect(0, 32, 160, 8, lcd_rgb(0x00, 0x00, 0xC0));
-                gfx_set_text_color(lcd_rgb(0x99, 0x99, 0x99));
-                gfx_write_string(0, 32, evt.buf);
-
-                lcd_fill_rect(0, 40, 160, 20, lcd_rgb(0x00, 0x00, 0xC0));
-                if (evt.params.allowed) {
-                    gfx_set_text_color(lcd_rgb(0x00, 0xFF, 0x00));
-                    gfx_write_string(0, 40, "ALLOWED");
-                } else {
-                    gfx_set_text_color(lcd_rgb(0xFF, 0x00, 0x00));
-                    gfx_write_string(0, 40, "DENIED");
-                }
-                gfx_refresh_rect(0, 32, 160, 16);
+                // evt.buf is allowed msg
+                // evt.params.allowed is true if allowed
                 break;
             case DISP_CMD_CLEAR_MSG:
-                lcd_fill_rect(0, 24, 160, 44, lcd_rgb(0x00, 0x00, 0xC0));
-                gfx_refresh_rect(0, 24, 160, 44);
+                // clear message
                 break;
             case DISP_CMD_REDRAW_BG:
-                display_init_bg();
+                // redraw bg
                 break;
             }
         }
@@ -258,10 +217,6 @@ void display_task(void *pvParameters)
         portTickType now = xTaskGetTickCount();
         if (now - last_heartbeat_tick >= (500/portTICK_PERIOD_MS)) {
             // heartbeat
-            gfx_set_font(NULL);
-            gfx_draw_char(152, 72, m_spin[spin_idx][0], lcd_rgb(0xFF, 0x00, 0x00), lcd_rgb(0xFF, 0xFF, 0xFF), 1);
-            spin_idx = (spin_idx + 1) % SPIN_LENGTH;
-            gfx_refresh_rect(152, 72, 6, 8);
 
             char strftime_buf[64];
             time_t tnow;
@@ -273,50 +228,8 @@ void display_task(void *pvParameters)
             localtime_r(&tnow, &timeinfo);
             strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
 
-            lcd_fill_rect(0, 52, 160, 10, lcd_rgb(0x00, 0x00, 0xC0));
-            gfx_set_text_color(lcd_rgb(0xFF, 0xFF, 0x00));
-            gfx_write_string(0, 52, strftime_buf);
-            gfx_refresh_rect(0, 52, 160, 16);
-
+            // strftime_buf is time
             last_heartbeat_tick = now;
         }
-
-
-        /*
-        ESP_LOGI(TAG, "Loading image from SD card...");
-        gfx_load_rgb565_bitmap(0, 0, 128, 160, "/sdcard/rat.raw");
-
-        mydelay(100);
-
-        ESP_LOGI(TAG, "Drawing graphics & text from primitives...");
-
-        lcd_fill_screen(lcd_rgb(0x00, 0x00, 0xF8));
-        gfx_draw_circle(64, 80, 32, lcd_rgb(0xF8, 0xFC, 0x00));
-        gfx_draw_circle(64, 80, 24, lcd_rgb(0x00, 0xFC, 0xF8));
-        gfx_draw_circle(64, 80, 16, lcd_rgb(0xF8, 0xFC, 0x00));
-        gfx_draw_circle(64, 80, 8, lcd_rgb(0x00, 0xFC, 0xF8));
-
-        gfx_set_font(&FreeSans9pt7b);
-        gfx_set_text_color(lcd_rgb(0x00, 0xE0, 0xF8));
-        gfx_write_string(0, 20, "Hello World");
-
-        gfx_set_font(NULL);
-        gfx_set_text_color(lcd_rgb(0x00, 0xFC, 0x00));
-        gfx_write_string(0, 22, "from the ESP32!");
-
-        gfx_set_font(&FreeSans9pt7b);
-        gfx_set_text_color(lcd_rgb(0xF8, 0xFC, 0xF8));
-        gfx_write_string(0, 154, "MakeIt Labs");
-
-        mydelay(100);
-        */
     }
 }
-
-/*
-void mydelay(int ms)
-{
-    TickType_t delay = ms / portTICK_PERIOD_MS;
-    vTaskDelay(delay);
-}
-*/

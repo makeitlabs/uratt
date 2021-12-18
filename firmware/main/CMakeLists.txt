@@ -1,15 +1,17 @@
+file(GLOB_RECURSE IMAGE_SOURCES images/*.c)
 
 idf_component_register(
   SRCS
   "beep_task.c"
   "config.c"
   "console.c"
+  "display_lvgl.c"
   "display_task.c"
   "door_task.c"
-  "glcdfont.c"
+  "esp_lcd_panel_st7735.c"
   "https.c"
   "i2c_periph.c"
-  "lcd_st7735.c"
+  "lvgl_demo_ui.c"
   "main.c"
   "main_task.c"
   "net_certs.c"
@@ -22,4 +24,5 @@ idf_component_register(
   "sdcard.c"
   "spiflash.c"
   "system_task.c"
+  ${IMAGE_SOURCES}
   INCLUDE_DIRS ".")
