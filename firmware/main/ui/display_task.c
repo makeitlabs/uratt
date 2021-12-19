@@ -87,9 +87,7 @@ typedef struct display_evt {
     } extparams;
 } display_evt_t;
 
-static lv_obj_t *s_scr;
-static lv_obj_t *s_scr_idle;
-static lv_obj_t *s_scr_access;
+static lv_obj_t *s_scr = NULL;
 
 static QueueHandle_t m_q;
 #endif
@@ -223,11 +221,6 @@ void display_init()
     }
 
     s_scr = display_lvgl_init_scr();
-
-    //ui_splash_create(s_scr);
-    s_scr_idle = ui_idle_create();
-    s_scr_access = ui_access_create();
-
 }
 #else
 { }
@@ -240,6 +233,15 @@ void display_task(void *pvParameters)
     portTickType init_tick = xTaskGetTickCount();
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
+
+    lv_obj_t *scr_splash = NULL;
+    lv_obj_t *scr_idle = NULL;
+    lv_obj_t *scr_access = NULL;
+
+    scr_splash = ui_splash_create();
+    lv_scr_load(scr_splash);
+
+    scr_idle = ui_idle_create();
 
 
     while(1) {
@@ -291,10 +293,11 @@ void display_task(void *pvParameters)
                 // redraw bg
                 break;
             case DISP_CMD_SHOW_IDLE:
-                lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, evt.extparams.destroy);
+                lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, evt.extparams.destroy);
                 break;
             case DISP_CMD_SHOW_ACCESS:
-                lv_scr_load_anim(s_scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 0, false);
+                scr_access = ui_access_create();
+                lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 0, false);
                 break;
             }
         }
