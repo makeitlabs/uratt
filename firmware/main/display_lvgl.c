@@ -53,7 +53,7 @@ static const char *TAG = "display";
 #define LCD_HOST  HSPI_HOST
 
 #define LCD_ONE_MHZ            (1000 * 1000)
-#define LCD_PIXEL_CLOCK_HZ     (8 * LCD_ONE_MHZ)
+#define LCD_PIXEL_CLOCK_HZ     (10 * LCD_ONE_MHZ)
 #define LCD_BK_LIGHT_ON_LEVEL  0
 #define LCD_BK_LIGHT_OFF_LEVEL !LCD_BK_LIGHT_ON_LEVEL
 #define PIN_NUM_DATA0          23
@@ -133,7 +133,7 @@ lv_obj_t *display_lvgl_init_scr(void)
         .lcd_cmd_bits = LCD_CMD_BITS,
         .lcd_param_bits = LCD_PARAM_BITS,
         .spi_mode = 0,
-        .trans_queue_depth = 16,
+        .trans_queue_depth = 8,
         .on_color_trans_done = notify_lvgl_flush_ready,
         .user_ctx = &disp_drv,
     };
@@ -163,12 +163,12 @@ lv_obj_t *display_lvgl_init_scr(void)
     lv_init();
     // alloc draw buffers used by LVGL
     // it's recommended to choose the size of the draw buffer(s) to be at least 1/10 screen sized
-    lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
     assert(buf1);
-    lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
     assert(buf2);
     // initialize LVGL draw buffers
-    lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 10);
+    lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 20);
 
     ESP_LOGI(TAG, "Register display driver to LVGL");
     lv_disp_drv_init(&disp_drv);

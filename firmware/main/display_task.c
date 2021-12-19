@@ -48,10 +48,15 @@
 #include "lvgl.h"
 #include "beep_task.h"
 #include "ui_splash.h"
+#include "ui_idle.h"
+#include "ui_access.h"
 
 static const char *TAG = "display_task";
 
 static lv_obj_t *s_scr;
+static lv_obj_t *s_scr_splash;
+static lv_obj_t *s_scr_idle;
+static lv_obj_t *s_scr_access;
 
 
 #define DISPLAY_QUEUE_DEPTH 8
@@ -60,20 +65,29 @@ static lv_obj_t *s_scr;
 typedef enum {
     DISP_CMD_WIFI_MSG = 0x00,
     DISP_CMD_WIFI_RSSI,
+    DISP_CMD_ACL_STATUS,
+    DISP_CMD_MQTT_STATUS,
+    DISP_CMD_CHARGE_STATUS,
     DISP_CMD_NET_MSG,
     DISP_CMD_ALLOWED_MSG,
     DISP_CMD_USER_MSG,
-    DISP_CMD_CLEAR_MSG,
-    DISP_CMD_REDRAW_BG
+    DISP_CMD_REDRAW_BG,
+    DISP_CMD_SHOW_IDLE,
+    DISP_CMD_SHOW_ACCESS
 } display_cmd_t;
+
 
 typedef struct display_evt {
     display_cmd_t cmd;
     char buf[DISPLAY_EVT_BUF_SIZE];
     union {
+        acl_status_t acl_status;
+        uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
+        uint16_t delay;
     } params;
+
 } display_evt_t;
 
 static QueueHandle_t m_q;
@@ -94,6 +108,15 @@ BaseType_t display_wifi_rssi(int16_t rssi)
     evt.params.rssi = rssi;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+
+BaseType_t display_acl_status(acl_status_t status)
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_ACL_STATUS;
+    evt.params.acl_status = status;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+
 
 BaseType_t display_net_msg(char *msg)
 {
@@ -123,12 +146,22 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 
-BaseType_t display_clear_msg()
+BaseType_t display_show_idle(uint16_t delay)
 {
     display_evt_t evt;
-    evt.cmd = DISP_CMD_CLEAR_MSG;
+    evt.params.delay = delay;
+    evt.cmd = DISP_CMD_SHOW_IDLE;
+
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+
+BaseType_t display_show_access()
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_SHOW_ACCESS;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+
 
 BaseType_t display_redraw_bg()
 {
@@ -149,8 +182,12 @@ void display_init()
     }
 
     s_scr = display_lvgl_init_scr();
-    ui_splash_create(s_scr);
 
+    s_scr_splash = ui_splash_create();
+    s_scr_idle = ui_idle_create();
+    s_scr_access = ui_access_create();
+
+    lv_scr_load(s_scr_splash);
 }
 
 void display_init_bg(void)
@@ -163,9 +200,9 @@ void display_task(void *pvParameters)
     portTickType init_tick = xTaskGetTickCount();
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
-    bool splash_shown = true;
 
     display_init_bg();
+
 
     while(1) {
         display_evt_t evt;
@@ -184,45 +221,55 @@ void display_task(void *pvParameters)
 
         display_lvgl_periodic();
 
+//        lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 5000, true);
+
         if (xQueueReceive(m_q, &evt, (10 / portTICK_PERIOD_MS)) == pdPASS) {
             switch(evt.cmd) {
             case DISP_CMD_WIFI_MSG:
                 // evt.buf is msg
+                ui_idle_set_status2(evt.buf);
                 break;
             case DISP_CMD_WIFI_RSSI:
-                // evt.params.rssi is int rssi
+                ui_idle_set_rssi(evt.params.rssi);
+                break;
+            case DISP_CMD_ACL_STATUS:
+                ui_idle_set_acl_status(evt.params.acl_status);
+                break;
+            case DISP_CMD_MQTT_STATUS:
+                break;
+            case DISP_CMD_CHARGE_STATUS:
                 break;
             case DISP_CMD_NET_MSG:
                 // evt.buf is msg
+                ui_idle_set_status3(evt.buf);
                 break;
             case DISP_CMD_USER_MSG:
                 // evt.buf is msg
                 break;
             case DISP_CMD_ALLOWED_MSG:
-                // evt.buf is allowed msg
+                // evt.buf is user
                 // evt.params.allowed is true if allowed
-                break;
-            case DISP_CMD_CLEAR_MSG:
-                // clear message
+                ui_access_set_user(evt.buf, evt.params.allowed);
                 break;
             case DISP_CMD_REDRAW_BG:
                 // redraw bg
+                break;
+            case DISP_CMD_SHOW_IDLE:
+                lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, false);
+                break;
+            case DISP_CMD_SHOW_ACCESS:
+                lv_scr_load_anim(s_scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 0, false);
                 break;
             }
         }
 
         portTickType now = xTaskGetTickCount();
 
-        if (splash_shown && now - init_tick >= (8000/portTICK_PERIOD_MS)) {
-          ui_splash_destroy();
-          splash_shown = false;
-        }
 
-
-        if (now - last_heartbeat_tick >= (500/portTICK_PERIOD_MS)) {
+        if (now - last_heartbeat_tick >= (1000/portTICK_PERIOD_MS)) {
             // heartbeat
 
-            char strftime_buf[64];
+            char strftime_buf[20];
             time_t tnow;
             struct tm timeinfo;
 
@@ -230,7 +277,9 @@ void display_task(void *pvParameters)
             setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
             tzset();
             localtime_r(&tnow, &timeinfo);
-            strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+            strftime(strftime_buf, sizeof(strftime_buf), "%l:%M%P", &timeinfo);
+
+            ui_idle_set_time(strftime_buf);
 
             // strftime_buf is time
             last_heartbeat_tick = now;

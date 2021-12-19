@@ -61,6 +61,7 @@ static void console_register_cmd_nvs_set(void);
 static void console_register_cmd_nvs_erase(void);
 static void console_register_cmd_wget(void);
 static void console_register_cmd_dir(void);
+static void console_register_cmd_acl(void);
 static void console_register_cmd_reset(void);
 
 
@@ -132,6 +133,7 @@ void console_init(void)
     console_register_cmd_nvs_erase();
     console_register_cmd_wget();
     console_register_cmd_dir();
+    console_register_cmd_acl();
     console_register_cmd_reset();
 
 
@@ -399,6 +401,13 @@ static int dir(int argc, char **argv)
 }
 
 
+static int fetch_acl(int argc, char **argv)
+{
+  printf("Download ACL...");
+  net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+  return ESP_OK;
+}
+
 
 static int system_reset(int argc, char **argv)
 {
@@ -518,6 +527,20 @@ static void console_register_cmd_dir(void)
     ESP_ERROR_CHECK( esp_console_cmd_register(&ls_cmd) );
 }
 
+
+static void console_register_cmd_acl(void)
+{
+
+  const esp_console_cmd_t acl_cmd = {
+      .command = "acl",
+      .help = "Download ACL from auth server",
+      .hint = NULL,
+      .func = &fetch_acl,
+      .argtable = NULL
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&acl_cmd) );
+}
 
 
 static void console_register_cmd_reset(void)

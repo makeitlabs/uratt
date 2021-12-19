@@ -37,6 +37,8 @@
 #ifndef _DISPLAY_TASK
 #define _DISPLAY_TASK
 
+#include "freertos/FreeRTOS.h"
+
 void display_task(void *pvParameters);
 void display_init();
 
@@ -45,8 +47,22 @@ BaseType_t display_wifi_rssi(int16_t rssi);
 BaseType_t display_net_msg(char *msg);
 BaseType_t display_user_msg(char *msg);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
-BaseType_t display_clear_msg();
+BaseType_t display_show_idle(uint16_t delay);
+BaseType_t display_show_access();
 BaseType_t display_redraw_bg();
+
+
+
+typedef enum {
+    ACL_STATUS_ERROR,
+    ACL_STATUS_DOWNLOADED_UPDATED,
+    ACL_STATUS_DOWNLOADED_SAME_HASH,
+    ACL_STATUS_CACHED,
+    ACL_STATUS_DOWNLOADING,
+    ACL_STATUS_DOWNLOAD_PROGRESS
+} acl_status_t;
+
+BaseType_t display_acl_status(acl_status_t status);
 
 
 #endif

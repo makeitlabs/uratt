@@ -147,21 +147,25 @@ void main_task(void *pvParameters)
 
     case STATE_INITIAL_LOCK:
       door_lock();
-      state = STATE_START_RFID_READ;
+      net_cmd_queue(NET_CMD_CONNECT);
+      // skip over start RFID, different delay for the initial splash
+      display_show_idle(5000);
+      state = STATE_WAIT_RFID;
       break;
 
     case STATE_START_RFID_READ:
-      net_cmd_queue(NET_CMD_CONNECT);
-      display_clear_msg();
+      display_show_idle(7500);
       state = STATE_WAIT_RFID;
       break;
 
     case STATE_WAIT_RFID:
       switch (evt.id) {
         case MAIN_EVT_VALID_RFID_SCAN:
+          display_show_access();
           state = STATE_RFID_VALID;
           break;
         case MAIN_EVT_INVALID_RFID_SCAN:
+          display_show_access();
           state = STATE_RFID_INVALID;
           break;
         default:
@@ -173,8 +177,7 @@ void main_task(void *pvParameters)
       {
         rfid_get_member_record(&active_member_record);
 
-        display_user_msg(active_member_record.name);
-        display_allowed_msg("ALLOWED", active_member_record.allowed);
+        display_allowed_msg(active_member_record.name, active_member_record.allowed);
 
         if (active_member_record.allowed) {
           ESP_LOGI(TAG, "main state member allowed");
@@ -199,8 +202,9 @@ void main_task(void *pvParameters)
     case STATE_RFID_INVALID:
       {
         rfid_get_member_record(&active_member_record);
-        display_user_msg("Unknown Tag");
-        display_allowed_msg("DENIED", 0);
+
+        display_allowed_msg("Unknown RFID Tag", false);
+
         beep_queue(3000, 250, 5, 5);
         beep_queue(0, 100, 0, 0);
         beep_queue(3000, 250, 5, 5);
