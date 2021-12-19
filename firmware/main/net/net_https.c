@@ -66,7 +66,6 @@
 #include "mbedtls/base64.h"
 
 #include "config.h"
-#include "display_task.h"
 #include "rfid_task.h"
 #include "net_task.h"
 #include "net_https.h"
@@ -102,8 +101,6 @@ esp_err_t net_https_download_acl()
   snprintf(web_url, sizeof(web_url), conf_acl_url_fmt, conf_acl_resource);
   free(conf_acl_url_fmt);
   free(conf_acl_resource);
-
-  display_net_msg("WIFI DOWNLOAD");
 
   xSemaphoreTake(g_sdcard_mutex, portMAX_DELAY);
 
@@ -146,7 +143,6 @@ esp_err_t net_https_download_acl()
     }
     xSemaphoreGive(g_acl_mutex);
 
-    display_net_msg("DOWNLOAD OK");
     net_cmd_queue(NET_CMD_SEND_ACL_UPDATED);
 
     xSemaphoreGive(g_sdcard_mutex);
@@ -160,7 +156,6 @@ esp_err_t net_https_download_acl()
   return 0;
 
 failed:
-  display_net_msg("DOWNLOAD FAIL");
   net_cmd_queue(NET_CMD_SEND_ACL_FAILED);
   return r;
 }

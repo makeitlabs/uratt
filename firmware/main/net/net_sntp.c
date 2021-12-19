@@ -22,6 +22,7 @@
 
 static const char *TAG = "net_sntp";
 
+static bool s_initialized = false;
 
 void net_sntp_sync_cb(struct timeval *tv)
 {
@@ -47,10 +48,10 @@ void net_sntp_sync_cb(struct timeval *tv)
 
 void net_sntp_init(void)
 {
+  if (!s_initialized) {
     static char ntp_server[64];
     esp_log_level_set(TAG, ESP_LOG_DEBUG);
     ESP_LOGI(TAG, "Initializing SNTP...");
-
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
@@ -69,10 +70,14 @@ void net_sntp_init(void)
 
     ESP_LOGI(TAG, "ntp update interval is %d msec", sntp_get_sync_interval());
     sntp_init();
+
+    s_initialized = true;
+  }
 }
 
 void net_sntp_stop(void)
 {
   ESP_LOGI(TAG, "Stopping SNTP...");
   sntp_stop();
+  s_initialized = false;
 }

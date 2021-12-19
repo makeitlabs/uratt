@@ -10,7 +10,7 @@
 
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
-
+#include "net_certs.h"
 #include "esp_log.h"
 
 static const char *TAG = "https";
@@ -78,7 +78,13 @@ esp_err_t http_get_file(int id, const char *url, const char *auth_user, const ch
      .auth_type = HTTP_AUTH_TYPE_BASIC,
      .username = auth_user,
      .password = auth_pass,
-     .crt_bundle_attach = esp_crt_bundle_attach,
+     //.crt_bundle_attach = esp_crt_bundle_attach,
+
+     .client_cert_pem = g_client_cert,
+     .client_key_pem = g_client_key,
+     .cert_pem = g_ca_cert,
+     .skip_cert_common_name_check = true,
+
      .event_handler = http_get_event_handler,
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);

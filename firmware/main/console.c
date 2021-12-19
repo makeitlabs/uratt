@@ -62,6 +62,7 @@ static void console_register_cmd_nvs_erase(void);
 static void console_register_cmd_wget(void);
 static void console_register_cmd_dir(void);
 static void console_register_cmd_acl(void);
+static void console_register_cmd_free(void);
 static void console_register_cmd_reset(void);
 
 
@@ -99,7 +100,7 @@ void console_init(void)
 
     /* Initialize the console */
     esp_console_config_t console_config = {
-            .max_cmdline_args = 8,
+            .max_cmdline_args = 4,
             .max_cmdline_length = 256,
             .hint_color = atoi(LOG_COLOR_CYAN)
     };
@@ -116,7 +117,7 @@ void console_init(void)
     linenoiseSetHintsCallback((linenoiseHintsCallback*) &esp_console_get_hint);
 
     /* Set command history size */
-    linenoiseHistorySetMaxLen(100);
+    linenoiseHistorySetMaxLen(10);
 
     /* Set command maximum length */
     linenoiseSetMaxLineLen(console_config.max_cmdline_length);
@@ -134,6 +135,7 @@ void console_init(void)
     console_register_cmd_wget();
     console_register_cmd_dir();
     console_register_cmd_acl();
+    console_register_cmd_free();
     console_register_cmd_reset();
 
 
@@ -408,6 +410,12 @@ static int fetch_acl(int argc, char **argv)
   return ESP_OK;
 }
 
+static int system_free(int argc, char **argv)
+{
+  printf("\n\nFree heap memory: %d bytes\n", esp_get_free_heap_size());
+  return ESP_OK;
+}
+
 
 static int system_reset(int argc, char **argv)
 {
@@ -540,6 +548,20 @@ static void console_register_cmd_acl(void)
   };
 
   ESP_ERROR_CHECK( esp_console_cmd_register(&acl_cmd) );
+}
+
+static void console_register_cmd_free(void)
+{
+
+  const esp_console_cmd_t free_cmd = {
+      .command = "free",
+      .help = "Show free memory and related information",
+      .hint = NULL,
+      .func = &system_free,
+      .argtable = NULL
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&free_cmd) );
 }
 
 

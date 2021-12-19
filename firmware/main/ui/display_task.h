@@ -51,8 +51,6 @@ BaseType_t display_show_idle(uint16_t delay);
 BaseType_t display_show_access();
 BaseType_t display_redraw_bg();
 
-
-
 typedef enum {
     ACL_STATUS_ERROR,
     ACL_STATUS_DOWNLOADED_UPDATED,

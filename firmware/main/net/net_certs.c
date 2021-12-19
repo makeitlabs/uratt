@@ -50,7 +50,7 @@ char* g_ca_cert = NULL;
 
 static const char *TAG = "net_certs";
 
-esp_err_t net_certs_load(char* filename, char** buf)
+esp_err_t net_certs_load(const char* filename, char** buf)
 {
   struct stat st;
 
@@ -65,7 +65,8 @@ esp_err_t net_certs_load(char* filename, char** buf)
     return -1;
   }
 
-  *buf = malloc(st.st_size);
+  // alloc one extra for null
+  *buf = malloc(st.st_size + 1);
   if (*buf == NULL) {
     ESP_LOGE(TAG, "can't malloc %ld bytes to load %s", (long)st.st_size, filename);
     close(fd);
@@ -79,6 +80,9 @@ esp_err_t net_certs_load(char* filename, char** buf)
     close(fd);
     return -1;
   }
+
+  // null terminate the buffer
+  (*buf)[st.st_size] = '\0';
 
   close(fd);
   ESP_LOGI(TAG, "Loaded certificate (%ld bytes) from %s", (long)st.st_size, filename);

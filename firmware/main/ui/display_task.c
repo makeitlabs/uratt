@@ -51,16 +51,12 @@
 #include "ui_idle.h"
 #include "ui_access.h"
 
+#ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
-
-static lv_obj_t *s_scr;
-static lv_obj_t *s_scr_splash;
-static lv_obj_t *s_scr_idle;
-static lv_obj_t *s_scr_access;
-
 
 #define DISPLAY_QUEUE_DEPTH 8
 #define DISPLAY_EVT_BUF_SIZE 32
+
 
 typedef enum {
     DISP_CMD_WIFI_MSG = 0x00,
@@ -76,7 +72,6 @@ typedef enum {
     DISP_CMD_SHOW_ACCESS
 } display_cmd_t;
 
-
 typedef struct display_evt {
     display_cmd_t cmd;
     char buf[DISPLAY_EVT_BUF_SIZE];
@@ -87,12 +82,19 @@ typedef struct display_evt {
         uint8_t allowed;
         uint16_t delay;
     } params;
-
 } display_evt_t;
 
+static lv_obj_t *s_scr;
+static lv_obj_t *s_scr_splash;
+static lv_obj_t *s_scr_idle;
+static lv_obj_t *s_scr_access;
+
 static QueueHandle_t m_q;
+#endif
+
 
 BaseType_t display_wifi_msg(char *msg)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_WIFI_MSG;
@@ -100,25 +102,37 @@ BaseType_t display_wifi_msg(char *msg)
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_wifi_rssi(int16_t rssi)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_WIFI_RSSI;
     evt.params.rssi = rssi;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_acl_status(acl_status_t status)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_ACL_STATUS;
     evt.params.acl_status = status;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 
 BaseType_t display_net_msg(char *msg)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_NET_MSG;
@@ -126,8 +140,12 @@ BaseType_t display_net_msg(char *msg)
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_user_msg(char *msg)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_USER_MSG;
@@ -135,8 +153,12 @@ BaseType_t display_user_msg(char *msg)
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_ALLOWED_MSG;
@@ -145,8 +167,12 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_show_idle(uint16_t delay)
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.params.delay = delay;
@@ -154,24 +180,36 @@ BaseType_t display_show_idle(uint16_t delay)
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_show_access()
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_SHOW_ACCESS;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 
 BaseType_t display_redraw_bg()
+#ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_REDRAW_BG;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
+#else
+{ return -1; }
+#endif
 
 
 void display_init()
+#ifdef DISPLAY_ENABLED
 {
     gpio_set_direction(GPIO_PIN_FP_BUTTON, GPIO_MODE_INPUT);
     gpio_pullup_en(GPIO_PIN_FP_BUTTON);
@@ -189,19 +227,17 @@ void display_init()
 
     lv_scr_load(s_scr_splash);
 }
+#else
+{ }
+#endif
 
-void display_init_bg(void)
-{
-  // init bg
-}
 
 void display_task(void *pvParameters)
+#ifdef DISPLAY_ENABLED
 {
     portTickType init_tick = xTaskGetTickCount();
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
-
-    display_init_bg();
 
 
     while(1) {
@@ -286,3 +322,6 @@ void display_task(void *pvParameters)
         }
     }
 }
+#else
+{  }
+#endif

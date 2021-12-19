@@ -154,7 +154,6 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
   char s[32];
   snprintf(s, sizeof(s), IPSTR, IP2STR(&event->ip_info.ip));
   display_wifi_msg(s);
-
   net_cmd_queue(NET_CMD_INIT);
 }
 
@@ -373,7 +372,6 @@ void net_init(void)
     esp_efuse_mac_get_default(g_mac_addr);
     ESP_LOGI(TAG, "My mac adddress is %2x%2x%2x%2x%2x%2x", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
 
-
     net_certs_init();
     net_https_init();
     net_mqtt_init();
@@ -399,8 +397,8 @@ void net_task(void *pvParameters)
         switch(evt.cmd) {
           case NET_CMD_INIT:
             net_sntp_init();
-            net_mqtt_start();
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+            net_mqtt_start();
             break;
 
           case NET_CMD_DISCONNECT:
@@ -427,7 +425,6 @@ void net_task(void *pvParameters)
                 ESP_LOGE(TAG, "ACL download failed, took %ld.%ld seconds", elapsed / 1000, elapsed % 1000);
                 display_acl_status(ACL_STATUS_ERROR);
               }
-
             }
             break;
 
