@@ -77,6 +77,7 @@ typedef struct display_evt {
     char buf[DISPLAY_EVT_BUF_SIZE];
     union {
         acl_status_t acl_status;
+        mqtt_status_t mqtt_status;
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
@@ -124,6 +125,19 @@ BaseType_t display_acl_status(acl_status_t status)
     display_evt_t evt;
     evt.cmd = DISP_CMD_ACL_STATUS;
     evt.params.acl_status = status;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
+
+BaseType_t display_mqtt_status(mqtt_status_t status)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_MQTT_STATUS;
+    evt.params.mqtt_status = status;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 #else
@@ -274,6 +288,7 @@ void display_task(void *pvParameters)
                 ui_idle_set_acl_status(evt.params.acl_status);
                 break;
             case DISP_CMD_MQTT_STATUS:
+                ui_idle_set_mqtt_status(evt.params.mqtt_status);
                 break;
             case DISP_CMD_CHARGE_STATUS:
                 break;

@@ -72,6 +72,7 @@
 #include "net_task.h"
 #include "net_mqtt.h"
 #include "net_certs.h"
+#include "display_task.h"
 
 static const char *TAG = "net_mqtt";
 
@@ -191,10 +192,12 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
             ESP_LOGI(TAG, "Connected to MQTT broker");
             msg_id = esp_mqtt_client_subscribe(client, "ratt/control/broadcast/acl/update", 0);
             ESP_LOGD(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+            display_mqtt_status(MQTT_STATUS_CONNECTED);
             s_mqtt_connected = true;
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Disconnected from MQTT broker");
+            display_mqtt_status(MQTT_STATUS_DISCONNECTED);
             s_mqtt_connected = false;
             break;
 
@@ -208,16 +211,23 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
             break;
         case MQTT_EVENT_PUBLISHED:
             ESP_LOGD(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            display_mqtt_status(MQTT_STATUS_DATA_SENT);
+
             break;
         case MQTT_EVENT_DATA:
             ESP_LOGD(TAG, "MQTT_EVENT_DATA");
             ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
             ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
 
+            // NOTE: we only subscribe to one thing, so no parsing needed (yet)
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+
+            display_mqtt_status(MQTT_STATUS_DATA_RECEIVED);
+
             break;
         case MQTT_EVENT_ERROR:
             ESP_LOGE(TAG, "MQTT_EVENT_ERROR");
+            display_mqtt_status(MQTT_STATUS_ERROR);
             break;
         default:
             ESP_LOGD(TAG, "Other event id:%d", event->event_id);
@@ -263,10 +273,14 @@ int net_mqtt_init(void)
 
 int net_mqtt_start(void)
 {
+  ESP_LOGI(TAG, "Starting MQTT client.");
   return esp_mqtt_client_start(s_mqtt_client);
 }
 
 int net_mqtt_stop(void)
 {
+  ESP_LOGI(TAG, "Stopping MQTT client.");
+  s_mqtt_connected = false;
+  display_mqtt_status(MQTT_STATUS_DISCONNECTED);
   return esp_mqtt_client_stop(s_mqtt_client);
 }

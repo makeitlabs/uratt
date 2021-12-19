@@ -62,5 +62,15 @@ typedef enum {
 
 BaseType_t display_acl_status(acl_status_t status);
 
+typedef enum {
+  MQTT_STATUS_ERROR,
+  MQTT_STATUS_DISCONNECTED,
+  MQTT_STATUS_CONNECTED,
+  MQTT_STATUS_DATA_RECEIVED,
+  MQTT_STATUS_DATA_SENT
+} mqtt_status_t;
+
+BaseType_t display_mqtt_status(mqtt_status_t status);
+
 
 #endif

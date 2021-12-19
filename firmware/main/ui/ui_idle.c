@@ -21,6 +21,8 @@ static lv_obj_t *label3 = NULL;
 static lv_obj_t *label4 = NULL;
 
 
+
+
 void ui_idle_set_acl_status(acl_status_t status)
 {
   lv_color_t color = lv_palette_main(LV_PALETTE_GREY);
@@ -42,6 +44,27 @@ void ui_idle_set_acl_status(acl_status_t status)
       break;
   }
   lv_obj_set_style_text_color(label_acl, color, 0);
+}
+
+void ui_idle_set_mqtt_status(mqtt_status_t status)
+{
+  lv_color_t color = lv_palette_main(LV_PALETTE_GREY);
+  switch(status) {
+    case MQTT_STATUS_ERROR:
+      color = lv_palette_lighten(LV_PALETTE_RED, 2);
+      break;
+    case MQTT_STATUS_DISCONNECTED:
+      color = lv_palette_main(LV_PALETTE_GREY);
+      break;
+    case MQTT_STATUS_CONNECTED:
+    case MQTT_STATUS_DATA_SENT:
+    case MQTT_STATUS_DATA_RECEIVED:
+      color = lv_palette_main(LV_PALETTE_GREEN);
+      break;
+    default:
+      break;
+  }
+  lv_obj_set_style_text_color(label_mqtt, color, 0);
 }
 
 
