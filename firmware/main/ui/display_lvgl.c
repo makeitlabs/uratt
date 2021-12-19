@@ -46,26 +46,16 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "lvgl.h"
+#include "system.h"
 #include "esp_lcd_panel_st7735.h"
 
 static const char *TAG = "display";
 
-#define LCD_HOST  HSPI_HOST
-
 #define LCD_ONE_MHZ            (1000 * 1000)
-#define LCD_PIXEL_CLOCK_HZ     (10 * LCD_ONE_MHZ)
-#define LCD_BK_LIGHT_ON_LEVEL  0
-#define LCD_BK_LIGHT_OFF_LEVEL !LCD_BK_LIGHT_ON_LEVEL
-#define PIN_NUM_DATA0          23
-#define PIN_NUM_PCLK           18
-#define PIN_NUM_CS             5
-#define PIN_NUM_DC             27
-#define PIN_NUM_RST            32
-#define PIN_NUM_BK_LIGHT       33
+#define LCD_PIXEL_CLOCK_HZ     (8 * LCD_ONE_MHZ)
 
 #define LCD_H_RES              80
 #define LCD_V_RES              160
-
 #define LCD_CMD_BITS           8
 #define LCD_PARAM_BITS         8
 
@@ -109,26 +99,26 @@ lv_obj_t *display_lvgl_init_scr(void)
     ESP_LOGI(TAG, "Turn off LCD backlight");
     gpio_config_t bk_gpio_config = {
         .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = 1ULL << PIN_NUM_BK_LIGHT
+        .pin_bit_mask = 1ULL << GPIO_PIN_LCD_BCKL
     };
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     ESP_LOGI(TAG, "Initialize SPI bus");
     spi_bus_config_t buscfg = {
-        .sclk_io_num = PIN_NUM_PCLK,
-        .mosi_io_num = PIN_NUM_DATA0,
+        .sclk_io_num = GPIO_PIN_LCD_CLK,
+        .mosi_io_num = GPIO_PIN_LCD_MOSI,
         .miso_io_num = -1,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
     };
-    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(spi_bus_initialize(LCD_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     ESP_LOGI(TAG, "Install panel IO");
     esp_lcd_panel_io_handle_t io_handle = NULL;
     esp_lcd_panel_io_spi_config_t io_config = {
-        .dc_gpio_num = PIN_NUM_DC,
-        .cs_gpio_num = PIN_NUM_CS,
+        .dc_gpio_num = GPIO_PIN_LCD_DC,
+        .cs_gpio_num = GPIO_PIN_LCD_CS,
         .pclk_hz = LCD_PIXEL_CLOCK_HZ,
         .lcd_cmd_bits = LCD_CMD_BITS,
         .lcd_param_bits = LCD_PARAM_BITS,
@@ -138,12 +128,12 @@ lv_obj_t *display_lvgl_init_scr(void)
         .user_ctx = &disp_drv,
     };
     // Attach the LCD to the SPI bus
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &io_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_SPI_HOST, &io_config, &io_handle));
 
     ESP_LOGI(TAG, "Install st7735 panel driver");
     esp_lcd_panel_handle_t panel_handle = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = PIN_NUM_RST,
+        .reset_gpio_num = GPIO_PIN_LCD_RESET,
         .color_space = ESP_LCD_COLOR_SPACE_BGR,
         .bits_per_pixel = 16,
     };
@@ -157,18 +147,18 @@ lv_obj_t *display_lvgl_init_scr(void)
     ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
 
     ESP_LOGI(TAG, "Turn on LCD backlight");
-    gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL);
+    gpio_set_level(GPIO_PIN_LCD_BCKL, GPIO_LCD_BCKL_LEVEL_ON);
 
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
     // alloc draw buffers used by LVGL
     // it's recommended to choose the size of the draw buffer(s) to be at least 1/10 screen sized
-    lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf1 = heap_caps_malloc(LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
     assert(buf1);
-    lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * 20 * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf2 = heap_caps_malloc(LCD_H_RES * 10 * sizeof(lv_color_t), MALLOC_CAP_DMA);
     assert(buf2);
     // initialize LVGL draw buffers
-    lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 20);
+    lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * 10);
 
     ESP_LOGI(TAG, "Register display driver to LVGL");
     lv_disp_drv_init(&disp_drv);
@@ -194,16 +184,4 @@ lv_obj_t *display_lvgl_init_scr(void)
     ESP_LOGI(TAG, "LVGL screen created.");
 
     return scr;
-
-/*
-    lvgl_demo_ui(scr);
-
-
-    while (1) {
-        // raise the task priority of LVGL and/or reduce the handler period can improve the performance
-        vTaskDelay(pdMS_TO_TICKS(10));
-        // The task running lv_timer_handler should have lower priority than that running `lv_tick_inc`
-
-    }
-  */
 }

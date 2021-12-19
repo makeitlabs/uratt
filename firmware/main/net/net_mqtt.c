@@ -88,102 +88,96 @@ int net_mqtt_topic_targeted(char *topic_type, char *subtopic, char *obuf, size_t
 
 void net_mqtt_send_wifi_strength(void)
 {
-  if (s_mqtt_connected) {
-    wifi_ap_record_t wifidata;
-    if (esp_wifi_sta_get_ap_info(&wifidata)==0) {
-      // TOPIC=ratt/status/node/b827eb206a6c/wifi/status
-      // DATA={"ap": "46:D9:E7:69:BB:67", "freq": "2.412", "quality": 60, "essid": "MakeIt Members", "level": -68}
+  wifi_ap_record_t wifidata;
+  if (esp_wifi_sta_get_ap_info(&wifidata)==0) {
+    // TOPIC=ratt/status/node/b827eb206a6c/wifi/status
+    // DATA={"ap": "46:D9:E7:69:BB:67", "freq": "2.412", "quality": 60, "essid": "MakeIt Members", "level": -68}
 
-      char *topic, *payload;
-      topic = malloc(128);
-      payload = malloc(256);
+    char *topic, *payload;
+    topic = malloc(128);
+    payload = malloc(256);
 
-      net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "wifi/status", topic, 128);
+    net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "wifi/status", topic, 128);
 
-      const int chan_freq[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484 };
+    const int chan_freq[] = { 2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484 };
 
-      snprintf(payload, 256, "{\"ap\": \"%02X:%02X:%02X:%02X:%02X:%02X\", \"freq\": \"%1d.%3d\", \"essid\": \"%s\", \"level\": %d}",
-        wifidata.bssid[0],wifidata.bssid[1],wifidata.bssid[2],wifidata.bssid[3],wifidata.bssid[4],wifidata.bssid[5],
-        (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] / 1000 : 0, (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] % 1000 : 0,
-        wifidata.ssid,
-        wifidata.rssi);
-      if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
-        ESP_LOGD(TAG, "published wifi status");
-      } else {
-        ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
-      }
+    snprintf(payload, 256, "{\"ap\": \"%02X:%02X:%02X:%02X:%02X:%02X\", \"freq\": \"%1d.%3d\", \"essid\": \"%s\", \"level\": %d}",
+      wifidata.bssid[0],wifidata.bssid[1],wifidata.bssid[2],wifidata.bssid[3],wifidata.bssid[4],wifidata.bssid[5],
+      (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] / 1000 : 0, (wifidata.primary <= 16) ? chan_freq[wifidata.primary-1] % 1000 : 0,
+      wifidata.ssid,
+      wifidata.rssi);
 
-      free(topic);
-      free(payload);
+    // QOS 0 - not very important.
+    if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 0, 0) != -1) {
+      ESP_LOGD(TAG, "published wifi status");
+    } else {
+      ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
     }
+
+    free(topic);
+    free(payload);
   }
 }
 
 
 void net_mqtt_send_acl_updated(char* status)
 {
-  if (s_mqtt_connected) {
-    // ratt/status/node/b827eb2f8dca/acl/update {"status":"downloaded"}
+  // ratt/status/node/b827eb2f8dca/acl/update {"status":"downloaded"}
 
-    char *topic, *payload;
-    topic = malloc(128);
-    payload = malloc(128);
+  char *topic, *payload;
+  topic = malloc(128);
+  payload = malloc(128);
 
-    net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "acl/update", topic, 128);
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "acl/update", topic, 128);
 
-    snprintf(payload, 128, "{\"status\":\"%s\"}", status);
-    if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
-      ESP_LOGD(TAG, "published acl update status");
-    } else {
-      ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
-    }
-
-    free(topic);
-    free(payload);
+  snprintf(payload, 128, "{\"status\":\"%s\"}", status);
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGD(TAG, "published acl update status");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
+
+  free(topic);
+  free(payload);
 }
 
 
 void net_mqtt_send_access(char *member, int allowed)
 {
-  if (s_mqtt_connected) {
-    char *topic, *payload;
-    topic = malloc(128);
-    payload = malloc(128);
+  char *topic, *payload;
+  topic = malloc(128);
+  payload = malloc(128);
 
-    net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
-    snprintf(payload, 128, "{\"member\": \"%s\", \"allowed\": %s}", member, allowed ? "true" : "false");
-    if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
-      ESP_LOGD(TAG, "published personality access");
-    } else {
-      ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
-    }
-
-    free(topic);
-    free(payload);
+  snprintf(payload, 128, "{\"member\": \"%s\", \"allowed\": %s}", member, allowed ? "true" : "false");
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGD(TAG, "published personality access");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
+
+  free(topic);
+  free(payload);
 }
 
 void net_mqtt_send_access_error(char *err_text, char *err_ext)
 {
-  if (s_mqtt_connected) {
-    char *topic, *payload;
-    topic = malloc(128);
-    payload = malloc(128);
+  char *topic, *payload;
+  topic = malloc(128);
+  payload = malloc(128);
 
-    net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
-    snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
-    if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
-      ESP_LOGD(TAG, "published personality access error");
-    } else {
-      ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
-    }
-
-    free(topic);
-    free(payload);
+  snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    ESP_LOGD(TAG, "published personality access error");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
   }
+
+  free(topic);
+  free(payload);
 }
 
 

@@ -54,7 +54,7 @@
 #ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
 
-#define DISPLAY_QUEUE_DEPTH 8
+#define DISPLAY_QUEUE_DEPTH 4
 #define DISPLAY_EVT_BUF_SIZE 32
 
 
@@ -82,10 +82,12 @@ typedef struct display_evt {
         uint8_t allowed;
         uint16_t delay;
     } params;
+    union {
+        bool destroy;
+    } extparams;
 } display_evt_t;
 
 static lv_obj_t *s_scr;
-static lv_obj_t *s_scr_splash;
 static lv_obj_t *s_scr_idle;
 static lv_obj_t *s_scr_access;
 
@@ -171,11 +173,12 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 { return -1; }
 #endif
 
-BaseType_t display_show_idle(uint16_t delay)
+BaseType_t display_show_idle(uint16_t delay, bool destroy)
 #ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.params.delay = delay;
+    evt.extparams.destroy = destroy;
     evt.cmd = DISP_CMD_SHOW_IDLE;
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
@@ -221,11 +224,10 @@ void display_init()
 
     s_scr = display_lvgl_init_scr();
 
-    s_scr_splash = ui_splash_create();
+    //ui_splash_create(s_scr);
     s_scr_idle = ui_idle_create();
     s_scr_access = ui_access_create();
 
-    lv_scr_load(s_scr_splash);
 }
 #else
 { }
@@ -256,8 +258,6 @@ void display_task(void *pvParameters)
         // end button test
 
         display_lvgl_periodic();
-
-//        lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 5000, true);
 
         if (xQueueReceive(m_q, &evt, (10 / portTICK_PERIOD_MS)) == pdPASS) {
             switch(evt.cmd) {
@@ -291,7 +291,7 @@ void display_task(void *pvParameters)
                 // redraw bg
                 break;
             case DISP_CMD_SHOW_IDLE:
-                lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, false);
+                lv_scr_load_anim(s_scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, evt.extparams.destroy);
                 break;
             case DISP_CMD_SHOW_ACCESS:
                 lv_scr_load_anim(s_scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 0, false);

@@ -147,13 +147,13 @@ void main_task(void *pvParameters)
     case STATE_INITIAL_LOCK:
       door_lock();
       net_cmd_queue(NET_CMD_CONNECT);
-      // skip over start RFID, different delay for the initial splash
-      display_show_idle(5000);
+      // shorter delay and destroy splash afterwards
+      display_show_idle(1000, false);
       state = STATE_WAIT_RFID;
       break;
 
     case STATE_START_RFID_READ:
-      display_show_idle(7500);
+      display_show_idle(7500, false);
       state = STATE_WAIT_RFID;
       break;
 

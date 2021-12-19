@@ -28,7 +28,6 @@ static lv_color_t arc_color[] = {
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
-
     my_timer_context_t *timer_ctx = (my_timer_context_t *) timer->user_data;
     bool flip = timer_ctx->flip;
     int count = timer_ctx->count_val;
@@ -52,10 +51,8 @@ static void anim_timer_cb(lv_timer_t *timer)
     timer_ctx->flip = flip;
 }
 
-lv_obj_t* ui_splash_create()
+void ui_splash_create(lv_obj_t* scr)
 {
-  lv_obj_t *scr = lv_obj_create(NULL);
-
   // Create arcs
   for (size_t i = 0; i < sizeof(arc) / sizeof(arc[0]); i++) {
       arc[i] = lv_arc_create(scr);
@@ -82,7 +79,6 @@ lv_obj_t* ui_splash_create()
   lv_obj_set_style_text_font(label1, &lv_font_montserrat_14, 0);
 
   label2 = lv_label_create(scr);
-  //lv_label_set_long_mode(label2, LV_LABEL_LONG_SCROLL_CIRCULAR);
   lv_obj_set_width(label2, 156);
   lv_label_set_text(label2, "uRATT");
   lv_obj_align(label2, LV_ALIGN_CENTER, 0, 0);
@@ -101,6 +97,4 @@ lv_obj_t* ui_splash_create()
   };
   my_tim_ctx.scr = scr;
   timer = lv_timer_create(anim_timer_cb, 20, &my_tim_ctx);
-
-  return scr;
 }

@@ -44,8 +44,9 @@
 #include "esp_vfs_dev.h"
 
 #include "esp_log.h"
-#include "console.h"
+#include "system.h"
 
+#include "console.h"
 #include "sdcard.h"
 #include "spiflash.h"
 #include "display_task.h"

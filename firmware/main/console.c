@@ -53,6 +53,7 @@
 
 #include "net_task.h"
 
+
 static char prompt[80];
 
 static void console_register_cmd_log(void);

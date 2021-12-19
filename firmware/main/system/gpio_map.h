@@ -2,7 +2,7 @@
 #define _GPIO_MAP
 
 
-#ifdef HARDWARE_REV0
+#ifdef HARDWARE_REV1
 #define GPIO_PIN_IO0        (0)
 #define GPIO_PIN_TXD0       (1)
 #define GPIO_PIN_SD_DAT0    (2)
@@ -29,8 +29,12 @@
 #define GPIO_SEL_LCD_RESET  (GPIO_SEL_32)
 #define GPIO_PIN_LCD_BCKL   (33)
 #define GPIO_SEL_LCD_BCKL   (GPIO_SEL_33)
+#define GPIO_LCD_BCKL_LEVEL_ON (0)
+#define GPIO_LCD_BCKL_LEVEL_OFF (!GPIO_LCD_BCKL_LEVEL_ON)
 #define GPIO_PIN_LOW_BAT    (34)
 #define GPIO_PIN_N_PWR_LOSS (35)
+
+#define LCD_SPI_HOST        HSPI_HOST
 #endif
 
 
