@@ -232,6 +232,8 @@ void rfid_task(void *pvParameters)
                 snprintf(s, sizeof(s), "%10.10u %2.2X %2.2X %2.2X %2.2X [%2.2X == %2.2X]", tag, rxbuf[4], rxbuf[5], rxbuf[6], rxbuf[7], rxbuf[8], checksum_calc);
                 ESP_LOGI(TAG, "%s", s);
 
+                main_task_event(MAIN_EVT_RFID_PRE_SCAN);
+
                 xSemaphoreTake(m_member_record_mutex, portMAX_DELAY);
                 bzero(&m_member_record, sizeof(m_member_record));
                 uint8_t found = rfid_lookup(tag, &m_member_record);

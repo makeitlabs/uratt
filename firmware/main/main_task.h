@@ -42,6 +42,7 @@
 
 typedef enum {
   MAIN_EVT_NONE = 0,
+  MAIN_EVT_RFID_PRE_SCAN,
   MAIN_EVT_VALID_RFID_SCAN,
   MAIN_EVT_INVALID_RFID_SCAN
 } main_evt_id_t;

@@ -66,7 +66,8 @@ typedef enum {
   STATE_RFID_INVALID,
   STATE_RFID_INVALID_WAIT,
   STATE_UNLOCKED,
-  STATE_LOCK
+  STATE_LOCK,
+  STATE_WAIT_AFTER_LOCK,
 } main_state_t;
 
 static const char* state_names[] =
@@ -79,7 +80,12 @@ static const char* state_names[] =
     "STATE_RFID_INVALID",
     "STATE_RFID_INVALID_WAIT",
     "STATE_UNLOCKED",
-    "STATE_LOCK"
+    "STATE_LOCK",
+    "STATE_WAIT_AFTER_LOCK",
+    "!!!UPDATE_STATE_NAMES_TABLE!!!"
+    "!!!UPDATE_STATE_NAMES_TABLE!!!"
+    "!!!UPDATE_STATE_NAMES_TABLE!!!"
+    "!!!UPDATE_STATE_NAMES_TABLE!!!"
   };
 
 typedef struct main_evt {
@@ -122,7 +128,7 @@ void main_task(void *pvParameters)
 
     tick_ms = xTaskGetTickCount() * (1000 / configTICK_RATE_HZ);
 
-    if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
+    if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdTRUE) {
       // handle some events immediately, regardless of system state
       switch(evt.id) {
         default:
@@ -159,6 +165,12 @@ void main_task(void *pvParameters)
 
     case STATE_WAIT_RFID:
       switch (evt.id) {
+        case MAIN_EVT_RFID_PRE_SCAN:
+          beep_queue(1864, 45, 1, 1);
+          beep_queue(1244, 45, 1, 1);
+          beep_queue(1108, 45, 1, 1);
+          beep_queue(0, 150, 1, 1);
+          break;
         case MAIN_EVT_VALID_RFID_SCAN:
           display_show_access();
           state = STATE_RFID_VALID;
@@ -230,7 +242,13 @@ void main_task(void *pvParameters)
       beep_queue(1174, 250, 5, 5);
       beep_queue(880, 250, 5, 5);
       door_lock();
-      state = STATE_START_RFID_READ;
+      saved_tick_ms = tick_ms;
+      state = STATE_WAIT_AFTER_LOCK;
+      break;
+
+    case STATE_WAIT_AFTER_LOCK:
+      if (tick_ms - saved_tick_ms >= 3000)
+        state = STATE_START_RFID_READ;
       break;
 
     default:
