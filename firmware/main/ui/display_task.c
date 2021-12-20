@@ -59,15 +59,12 @@ static const char *TAG = "display_task";
 
 
 typedef enum {
-    DISP_CMD_WIFI_MSG = 0x00,
+    DISP_CMD_WIFI_STATUS = 0x00,
     DISP_CMD_WIFI_RSSI,
     DISP_CMD_ACL_STATUS,
     DISP_CMD_MQTT_STATUS,
     DISP_CMD_CHARGE_STATUS,
-    DISP_CMD_NET_MSG,
     DISP_CMD_ALLOWED_MSG,
-    DISP_CMD_USER_MSG,
-    DISP_CMD_REDRAW_BG,
     DISP_CMD_SHOW_IDLE,
     DISP_CMD_SHOW_ACCESS
 } display_cmd_t;
@@ -78,6 +75,7 @@ typedef struct display_evt {
     union {
         acl_status_t acl_status;
         mqtt_status_t mqtt_status;
+        wifi_status_t wifi_status;
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
@@ -93,13 +91,12 @@ static lv_obj_t *s_scr = NULL;
 static QueueHandle_t m_q;
 #endif
 
-
-BaseType_t display_wifi_msg(char *msg)
+BaseType_t display_wifi_status(wifi_status_t status)
 #ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
-    evt.cmd = DISP_CMD_WIFI_MSG;
-    strncpy(evt.buf, msg, DISPLAY_EVT_BUF_SIZE);
+    evt.cmd = DISP_CMD_WIFI_STATUS;
+    evt.params.wifi_status = status;
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
@@ -144,33 +141,6 @@ BaseType_t display_mqtt_status(mqtt_status_t status)
 { return -1; }
 #endif
 
-
-BaseType_t display_net_msg(char *msg)
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_NET_MSG;
-    strncpy(evt.buf, msg, DISPLAY_EVT_BUF_SIZE);
-
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
-BaseType_t display_user_msg(char *msg)
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_USER_MSG;
-    strncpy(evt.buf, msg, DISPLAY_EVT_BUF_SIZE);
-
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 #ifdef DISPLAY_ENABLED
 {
@@ -204,18 +174,6 @@ BaseType_t display_show_access()
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_SHOW_ACCESS;
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
-
-BaseType_t display_redraw_bg()
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_REDRAW_BG;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 #else
@@ -277,9 +235,8 @@ void display_task(void *pvParameters)
 
         if (xQueueReceive(m_q, &evt, (10 / portTICK_PERIOD_MS)) == pdPASS) {
             switch(evt.cmd) {
-            case DISP_CMD_WIFI_MSG:
-                // evt.buf is msg
-                ui_idle_set_status2(evt.buf);
+            case DISP_CMD_WIFI_STATUS:
+                ui_idle_set_wifi_status(evt.params.wifi_status);
                 break;
             case DISP_CMD_WIFI_RSSI:
                 ui_idle_set_rssi(evt.params.rssi);
@@ -292,27 +249,17 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_CHARGE_STATUS:
                 break;
-            case DISP_CMD_NET_MSG:
-                // evt.buf is msg
-                ui_idle_set_status3(evt.buf);
-                break;
-            case DISP_CMD_USER_MSG:
-                // evt.buf is msg
-                break;
             case DISP_CMD_ALLOWED_MSG:
                 // evt.buf is user
                 // evt.params.allowed is true if allowed
                 ui_access_set_user(evt.buf, evt.params.allowed);
                 break;
-            case DISP_CMD_REDRAW_BG:
-                // redraw bg
-                break;
             case DISP_CMD_SHOW_IDLE:
-                lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, evt.params.delay, evt.extparams.destroy);
+                lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 750, evt.params.delay, evt.extparams.destroy);
                 break;
             case DISP_CMD_SHOW_ACCESS:
                 scr_access = ui_access_create();
-                lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 1000, 0, false);
+                lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
                 break;
             }
         }

@@ -169,7 +169,7 @@ void system_task(void *pvParameters)
           //lcd_reset();
           //lcd_reinit();
 
-          display_redraw_bg();
+          //display_redraw_bg();
 
           //lcd_set_backlight(ON);
 

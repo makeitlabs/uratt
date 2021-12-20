@@ -9,9 +9,8 @@ void ui_idle_set_rssi(int rssi);
 void ui_idle_set_time(char *time_str);
 void ui_idle_set_acl_status(acl_status_t status);
 void ui_idle_set_mqtt_status(mqtt_status_t status);
+void ui_idle_set_wifi_status(wifi_status_t status);
 
 
-void ui_idle_set_status2(char *status);
-void ui_idle_set_status3(char *status);
 
 #endif

@@ -153,8 +153,8 @@ void main_task(void *pvParameters)
     case STATE_INITIAL_LOCK:
       door_lock();
       net_cmd_queue(NET_CMD_CONNECT);
-      // shorter delay and destroy splash afterwards
-      display_show_idle(4000, true);
+      // shorter delay
+      display_show_idle(2000, true);
       state = STATE_WAIT_RFID;
       break;
 

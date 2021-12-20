@@ -151,9 +151,13 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
   memcpy(&s_ip_addr, &event->ip_info.ip, sizeof(s_ip_addr));
   xSemaphoreGive(s_semph_get_ip_addrs);
 
+  /*
   char s[32];
   snprintf(s, sizeof(s), IPSTR, IP2STR(&event->ip_info.ip));
   display_wifi_msg(s);
+  */
+  display_wifi_status(WIFI_STATUS_CONNECTED);
+
   net_cmd_queue(NET_CMD_INIT);
 }
 
@@ -162,12 +166,17 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 {
     ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
 
-    display_wifi_msg("WIFI RECON");
+    display_wifi_status(WIFI_STATUS_DISCONNECTED);
+
 
     esp_err_t err = esp_wifi_connect();
     if (err == ESP_ERR_WIFI_NOT_STARTED) {
+        display_wifi_status(WIFI_STATUS_ERROR);
         return;
     }
+
+    display_wifi_status(WIFI_STATUS_CONNECTING);
+
     ESP_ERROR_CHECK(err);
 }
 
@@ -216,6 +225,7 @@ static esp_netif_t *net_wifi_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    display_wifi_status(WIFI_STATUS_CONNECTING);
     esp_wifi_connect();
     return netif;
 }
@@ -234,6 +244,8 @@ static void net_wifi_stop(void)
     ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(wifi_netif));
     esp_netif_destroy(wifi_netif);
     s_example_esp_netif = NULL;
+
+    display_wifi_status(WIFI_STATUS_DISCONNECTED);
 }
 
 
@@ -259,8 +271,6 @@ esp_err_t net_connect(void)
     if (s_semph_get_ip_addrs != NULL) {
         return ESP_ERR_INVALID_STATE;
     }
-
-    display_net_msg("WIFI CONNECT");
 
     net_start();
     ESP_ERROR_CHECK(esp_register_shutdown_handler(&net_stop));
@@ -361,7 +371,7 @@ void net_init(void)
     esp_log_level_set("phy_init", ESP_LOG_WARN);
     esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
 
-    display_net_msg("WIFI INIT");
+    display_wifi_status(WIFI_STATUS_INIT);
 
     m_q = xQueueCreate(NET_QUEUE_DEPTH, sizeof(net_evt_t));
     if (m_q == NULL) {
@@ -485,14 +495,8 @@ void net_timer(TimerHandle_t xTimer)
         }
 
         interval++;
-
     }
 }
-
-
-
-
-
 
 
 /*

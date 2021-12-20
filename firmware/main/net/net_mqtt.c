@@ -245,6 +245,8 @@ int net_mqtt_init(void)
 {
   ESP_LOGI(TAG, "Initializing MQTT...");
 
+  display_mqtt_status(MQTT_STATUS_INIT);
+
   esp_log_level_set("MQTT_CLIENT", ESP_LOG_WARN);
   esp_log_level_set("TRANSPORT_TCP", ESP_LOG_WARN);
   esp_log_level_set("TRANSPORT_SSL", ESP_LOG_WARN);

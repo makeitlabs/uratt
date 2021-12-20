@@ -69,6 +69,7 @@
 #include "rfid_task.h"
 #include "net_task.h"
 #include "net_https.h"
+#include "display_task.h"
 
 static const char *TAG = "net_https";
 
@@ -81,6 +82,8 @@ static const char *TAG = "net_https";
 int net_https_init(void)
 {
   ESP_LOGI(TAG, "net_https init");
+
+  display_acl_status(ACL_STATUS_INIT);
 
   http_init();
 

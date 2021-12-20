@@ -44,14 +44,12 @@ void display_init();
 
 BaseType_t display_wifi_msg(char *msg);
 BaseType_t display_wifi_rssi(int16_t rssi);
-BaseType_t display_net_msg(char *msg);
-BaseType_t display_user_msg(char *msg);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
 BaseType_t display_show_idle(uint16_t delay, bool destroy);
 BaseType_t display_show_access();
-BaseType_t display_redraw_bg();
 
 typedef enum {
+    ACL_STATUS_INIT,
     ACL_STATUS_ERROR,
     ACL_STATUS_DOWNLOADED_UPDATED,
     ACL_STATUS_DOWNLOADED_SAME_HASH,
@@ -63,6 +61,7 @@ typedef enum {
 BaseType_t display_acl_status(acl_status_t status);
 
 typedef enum {
+  MQTT_STATUS_INIT,
   MQTT_STATUS_ERROR,
   MQTT_STATUS_DISCONNECTED,
   MQTT_STATUS_CONNECTED,
@@ -71,6 +70,17 @@ typedef enum {
 } mqtt_status_t;
 
 BaseType_t display_mqtt_status(mqtt_status_t status);
+
+
+typedef enum {
+  WIFI_STATUS_INIT,
+  WIFI_STATUS_ERROR,
+  WIFI_STATUS_DISCONNECTED,
+  WIFI_STATUS_CONNECTING,
+  WIFI_STATUS_CONNECTED,
+} wifi_status_t;
+
+BaseType_t display_wifi_status(wifi_status_t status);
 
 
 #endif

@@ -37,7 +37,7 @@ lv_obj_t* ui_access_create()
   lv_label_set_long_mode(label_user, LV_LABEL_LONG_SCROLL_CIRCULAR);
   lv_obj_set_width(label_user, 156);
   lv_obj_align(label_user, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_text_font(label_user, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_font(label_user, &lv_font_montserrat_36, 0);
   lv_obj_set_style_text_color(label_user, lv_color_white(), 0);
 
   return scr;
