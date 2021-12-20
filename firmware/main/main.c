@@ -111,7 +111,7 @@ void app_main(void)
     ESP_LOGI(TAG, "creating tasks");
 
     xTaskCreate(&system_task, "system_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&beep_task, "beep_task", 2048, NULL, 8, NULL);
+    xTaskCreate(&beep_task, "beep_task", 2560, NULL, 8, NULL);
     xTaskCreate(&door_task, "door_task", 2048, NULL, 8, NULL);
     xTaskCreate(&rfid_task, "rfid_task", 3072, NULL, 8, NULL);
 #ifdef DISPLAY_ENABLED
