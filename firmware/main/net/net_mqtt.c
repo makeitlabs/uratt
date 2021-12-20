@@ -110,6 +110,8 @@ void net_mqtt_send_wifi_strength(void)
 
     // QOS 0 - not very important.
     if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 0, 0) != -1) {
+      // send the status to the display here because QOS 0 publishes don't have a followup event
+      display_mqtt_status(MQTT_STATUS_DATA_SENT);
       ESP_LOGD(TAG, "published wifi status");
     } else {
       ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
@@ -197,7 +199,9 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGI(TAG, "Disconnected from MQTT broker");
+
             display_mqtt_status(MQTT_STATUS_DISCONNECTED);
+
             s_mqtt_connected = false;
             break;
 
@@ -211,8 +215,8 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
             break;
         case MQTT_EVENT_PUBLISHED:
             ESP_LOGD(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
-            display_mqtt_status(MQTT_STATUS_DATA_SENT);
 
+            display_mqtt_status(MQTT_STATUS_DATA_SENT);
             break;
         case MQTT_EVENT_DATA:
             ESP_LOGD(TAG, "MQTT_EVENT_DATA");
