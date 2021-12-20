@@ -99,7 +99,7 @@ void system_task(void *pvParameters)
 {
   ESP_LOGI(TAG, "System management task started");
 
-  uint last_pwr_loss = 0;
+  uint last_pwr_loss = 1;
   uint last_low_batt = 1;
 
   time_t time_pwr_loss = 0;
@@ -108,7 +108,10 @@ void system_task(void *pvParameters)
   time_t last_time_pwr_loss = 0;
   time_t last_time_low_batt = 0;
 
+  time_t last_lost = 0;
+
   time_t now = 0;
+
 
   while(1) {
     time(&now);
@@ -134,49 +137,59 @@ void system_task(void *pvParameters)
         last_time_pwr_loss = now;
       } else {
         ESP_LOGI(TAG, "power restored!");
+        display_show_idle(1000, true);
       }
 
       last_pwr_loss = pwr_loss;
+      last_lost = now;
     }
 
     if (pwr_loss == 0) {
         time_t lost = (now - last_time_pwr_loss);
 
-        if (lost >= 10) {
-          ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
-          net_cmd_queue(NET_CMD_DISCONNECT);
-          taskYIELD();
+        if (lost != last_lost) {
+          if (lost == 5) {
+            display_show_sleep();
+          }
+          if (lost > 6 && lost < 30) {
+            display_sleep_countdown(30 - lost);
+          } else if (lost >= 30) {
+            ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
+            net_cmd_queue(NET_CMD_DISCONNECT);
+            taskYIELD();
 
-          ESP_LOGI(TAG, "going to sleep");
+            ESP_LOGI(TAG, "going to sleep");
 
-          esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
-          gpio_wakeup_enable(13, GPIO_INTR_LOW_LEVEL);
-          gpio_wakeup_enable(35, GPIO_INTR_HIGH_LEVEL);
-          esp_sleep_enable_gpio_wakeup();
+            esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
+            gpio_wakeup_enable(13, GPIO_INTR_LOW_LEVEL);
+            gpio_wakeup_enable(35, GPIO_INTR_HIGH_LEVEL);
+            esp_sleep_enable_gpio_wakeup();
 
-          gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
+            gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
 
-          //lcd_reset();
-          //lcd_set_backlight(OFF);
+            //lcd_reset();
+            //lcd_set_backlight(OFF);
 
 
-          esp_light_sleep_start();
+            esp_light_sleep_start();
 
-          ESP_LOGI(TAG, "waking up");
+            ESP_LOGI(TAG, "waking up");
 
-          gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
+            gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
 
-          //lcd_reset();
-          //lcd_reinit();
+            //lcd_reset();
+            //lcd_reinit();
 
-          //display_redraw_bg();
+            //display_redraw_bg();
 
-          //lcd_set_backlight(ON);
+            //lcd_set_backlight(ON);
 
-          net_cmd_queue(NET_CMD_CONNECT);
+            net_cmd_queue(NET_CMD_CONNECT);
 
-          last_time_pwr_loss = now;
+            last_time_pwr_loss = now;
+          }
         }
+        last_lost = lost;
     }
 
 

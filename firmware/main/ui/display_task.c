@@ -50,6 +50,7 @@
 #include "ui_splash.h"
 #include "ui_idle.h"
 #include "ui_access.h"
+#include "ui_sleep.h"
 
 #ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
@@ -64,9 +65,11 @@ typedef enum {
     DISP_CMD_ACL_STATUS,
     DISP_CMD_MQTT_STATUS,
     DISP_CMD_CHARGE_STATUS,
+    DISP_CMD_SLEEP_COUNTDOWN,
     DISP_CMD_ALLOWED_MSG,
     DISP_CMD_SHOW_IDLE,
-    DISP_CMD_SHOW_ACCESS
+    DISP_CMD_SHOW_ACCESS,
+    DISP_CMD_SHOW_SLEEP
 } display_cmd_t;
 
 typedef struct display_evt {
@@ -80,6 +83,7 @@ typedef struct display_evt {
         int16_t rssi;
         uint8_t allowed;
         uint16_t delay;
+        uint8_t countdown;
     } params;
     union {
         bool destroy;
@@ -141,6 +145,18 @@ BaseType_t display_mqtt_status(mqtt_status_t status)
 { return -1; }
 #endif
 
+BaseType_t display_sleep_countdown(uint8_t countdown)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_SLEEP_COUNTDOWN;
+    evt.params.countdown = countdown;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 #ifdef DISPLAY_ENABLED
 {
@@ -180,6 +196,17 @@ BaseType_t display_show_access()
 { return -1; }
 #endif
 
+BaseType_t display_show_sleep()
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_SHOW_SLEEP;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
 
 void display_init()
 #ifdef DISPLAY_ENABLED
@@ -206,15 +233,11 @@ void display_task(void *pvParameters)
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
 
-    lv_obj_t *scr_splash = NULL;
-    lv_obj_t *scr_idle = NULL;
-    lv_obj_t *scr_access = NULL;
 
-    scr_splash = ui_splash_create();
+    lv_obj_t *scr_splash = ui_splash_create();
     lv_scr_load(scr_splash);
 
-    scr_idle = ui_idle_create();
-
+    lv_obj_t *scr_idle = ui_idle_create();
 
     while(1) {
         display_evt_t evt;
@@ -249,17 +272,26 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_CHARGE_STATUS:
                 break;
+            case DISP_CMD_SLEEP_COUNTDOWN:
+                ui_sleep_set_countdown(evt.params.countdown);
+                break;
             case DISP_CMD_ALLOWED_MSG:
-                // evt.buf is user
-                // evt.params.allowed is true if allowed
                 ui_access_set_user(evt.buf, evt.params.allowed);
                 break;
             case DISP_CMD_SHOW_IDLE:
                 lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 750, evt.params.delay, evt.extparams.destroy);
                 break;
             case DISP_CMD_SHOW_ACCESS:
-                scr_access = ui_access_create();
-                lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
+                {
+                  lv_obj_t *scr_access = ui_access_create();
+                  lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
+                }
+                break;
+            case DISP_CMD_SHOW_SLEEP:
+                {
+                  lv_obj_t *scr_sleep = ui_sleep_create();
+                  lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 1000, 0, false);
+                }
                 break;
             }
         }

@@ -110,7 +110,6 @@ void net_mqtt_send_wifi_strength(void)
 
     // QOS 0 - not very important.
     if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 0, 0) != -1) {
-      // send the status to the display here because QOS 0 publishes don't have a followup event
       display_mqtt_status(MQTT_STATUS_DATA_SENT);
       ESP_LOGD(TAG, "published wifi status");
     } else {
@@ -135,6 +134,7 @@ void net_mqtt_send_acl_updated(char* status)
 
   snprintf(payload, 128, "{\"status\":\"%s\"}", status);
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
     ESP_LOGD(TAG, "published acl update status");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
@@ -155,6 +155,7 @@ void net_mqtt_send_access(char *member, int allowed)
 
   snprintf(payload, 128, "{\"member\": \"%s\", \"allowed\": %s}", member, allowed ? "true" : "false");
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
     ESP_LOGD(TAG, "published personality access");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
@@ -174,6 +175,7 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 
   snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
     ESP_LOGD(TAG, "published personality access error");
   } else {
     ESP_LOGE(TAG, "error publishing to topic '%s'", topic);

@@ -47,6 +47,8 @@ BaseType_t display_wifi_rssi(int16_t rssi);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
 BaseType_t display_show_idle(uint16_t delay, bool destroy);
 BaseType_t display_show_access();
+BaseType_t display_show_sleep();
+BaseType_t display_sleep_countdown(uint8_t countdown);
 
 typedef enum {
     ACL_STATUS_INIT,

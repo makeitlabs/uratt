@@ -239,7 +239,7 @@ lv_obj_t* ui_idle_create()
 
 
   label_time = lv_label_create(canvas);
-  lv_obj_set_width(label_time, 60);
+  lv_obj_set_width(label_time, 65);
   lv_obj_align(label_time, LV_ALIGN_TOP_RIGHT, -2, 0);
   lv_obj_set_style_text_font(label_time, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(label_time, lv_palette_lighten(LV_PALETTE_GREY, 4), 0);

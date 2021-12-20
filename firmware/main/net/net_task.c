@@ -424,7 +424,6 @@ void net_task(void *pvParameters)
           case NET_CMD_DOWNLOAD_ACL:
             {
               display_acl_status(ACL_STATUS_DOWNLOADING);
-              net_mqtt_stop();
 
               time_t start = esp_log_timestamp();
               esp_err_t r = net_https_download_acl();
@@ -436,7 +435,6 @@ void net_task(void *pvParameters)
                 ESP_LOGE(TAG, "ACL download failed, took %ld.%ld seconds", elapsed / 1000, elapsed % 1000);
                 display_acl_status(ACL_STATUS_ERROR);
               }
-              net_mqtt_start();
 
             }
             break;
