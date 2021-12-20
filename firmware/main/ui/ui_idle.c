@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <math.h>
 #include "lvgl.h"
 #include "display_task.h"
@@ -5,7 +6,16 @@
 typedef struct {
     lv_obj_t *scr;
     int count_val;
+    bool count_dir;
+    int mqtt_blink;
 } my_timer_context_t;
+
+static my_timer_context_t my_tim_ctx = {
+    .count_val = 0,
+    .count_dir = true,
+    .mqtt_blink = 0
+};
+
 
 static lv_obj_t *label_wifi = NULL;
 static lv_obj_t *label_acl = NULL;
@@ -14,13 +24,59 @@ static lv_obj_t *label_battery = NULL;
 
 static lv_obj_t *label_time = NULL;
 
-
-
 static lv_obj_t *label2 = NULL;
 static lv_obj_t *label3 = NULL;
 static lv_obj_t *label4 = NULL;
 
+static lv_timer_t *timer;
 
+
+static acl_status_t acl_status;
+static mqtt_status_t mqtt_status;
+
+static void anim_timer_cb(lv_timer_t *timer)
+{
+    my_timer_context_t *timer_ctx = (my_timer_context_t *) timer->user_data;
+    int count = timer_ctx->count_val;
+    bool count_dir = timer_ctx->count_dir;
+    int mqtt_blink = timer_ctx->mqtt_blink;
+    //lv_obj_t *scr = timer_ctx->scr;
+
+    if (acl_status == ACL_STATUS_DOWNLOADING) {
+      lv_obj_set_style_opa(label_acl, count * 16, 0);
+    } else {
+      lv_obj_set_style_opa(label_acl, 255, 0);
+    }
+
+    if (mqtt_status == MQTT_STATUS_DATA_SENT || mqtt_status == MQTT_STATUS_DATA_RECEIVED) {
+      if (mqtt_blink == 0) {
+        mqtt_blink = 32;
+      } else {
+        mqtt_blink--;
+        if (mqtt_blink == 0) {
+          mqtt_status = MQTT_STATUS_CONNECTED;
+        }
+      }
+      lv_obj_set_style_opa(label_mqtt, (count < 7) ? 255 : 64, 0);
+    } else {
+      lv_obj_set_style_opa(label_mqtt, 255, 0);
+    }
+
+
+    if (count_dir) {
+      count++;
+      if (count >= 15)
+        count_dir = !count_dir;
+    } else {
+      count--;
+      if (count <= 0)
+        count_dir = !count_dir;
+    }
+
+    timer_ctx->count_val = count;
+    timer_ctx->count_dir = count_dir;
+    timer_ctx->mqtt_blink = mqtt_blink;
+}
 
 
 void ui_idle_set_acl_status(acl_status_t status)
@@ -44,6 +100,7 @@ void ui_idle_set_acl_status(acl_status_t status)
       break;
   }
   lv_obj_set_style_text_color(label_acl, color, 0);
+  acl_status = status;
 }
 
 void ui_idle_set_mqtt_status(mqtt_status_t status)
@@ -65,6 +122,7 @@ void ui_idle_set_mqtt_status(mqtt_status_t status)
       break;
   }
   lv_obj_set_style_text_color(label_mqtt, color, 0);
+  mqtt_status = status;
 }
 
 
@@ -178,6 +236,11 @@ lv_obj_t* ui_idle_create()
   lv_obj_align(label4, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_style_text_font(label4, &lv_font_montserrat_20, 0);
   lv_obj_set_style_text_color(label4, lv_palette_main(LV_PALETTE_BLUE), 0);
+
+
+  my_tim_ctx.scr = scr;
+  timer = lv_timer_create(anim_timer_cb, 20, &my_tim_ctx);
+
 
   return scr;
 }
