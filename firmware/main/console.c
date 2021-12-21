@@ -101,9 +101,9 @@ void console_init(void)
 
     /* Initialize the console */
     esp_console_config_t console_config = {
-            .max_cmdline_args = 4,
-            .max_cmdline_length = 256,
-            .hint_color = atoi(LOG_COLOR_CYAN)
+            .max_cmdline_args = 5,
+            .max_cmdline_length = 128,
+            .hint_color = atoi(LOG_COLOR_GREEN)
     };
     ESP_ERROR_CHECK( esp_console_init(&console_config) );
 
@@ -598,7 +598,7 @@ int console_poll(void)
     } else if (err == ESP_ERR_INVALID_ARG) {
         // command was empty
     } else if (err == ESP_OK && ret != ESP_OK) {
-        printf("Command returned non-zero error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
+        printf("Command returned error code: 0x%x (%s)\n", ret, esp_err_to_name(ret));
     } else if (err != ESP_OK) {
         printf("Internal error: %s\n", esp_err_to_name(err));
     }
