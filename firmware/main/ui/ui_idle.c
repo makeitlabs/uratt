@@ -15,6 +15,8 @@ LV_IMG_DECLARE(wifi_2);
 LV_IMG_DECLARE(wifi_3);
 LV_IMG_DECLARE(wifi_4);
 
+LV_IMG_DECLARE(rfid_tag);
+
 typedef struct {
     lv_obj_t *scr;
     int count_val;
@@ -29,20 +31,22 @@ static my_timer_context_t my_tim_ctx = {
 };
 
 
-static lv_obj_t *img_wifi = NULL;
-static lv_obj_t *label_acl = NULL;
+static lv_obj_t *img_wifi_signal = NULL;
+static lv_obj_t *img_acl_status = NULL;
+static lv_obj_t *label_acl_status = NULL;
+
+static lv_obj_t *label_wifi_status = NULL;
 static lv_obj_t *label_mqtt = NULL;
 static lv_obj_t *label_battery = NULL;
 
 static lv_obj_t *label_time = NULL;
 
-//static lv_obj_t *label_scan = NULL;
 
 static lv_timer_t *timer;
 
-static acl_status_t acl_status = ACL_STATUS_ERROR;
-static mqtt_status_t mqtt_status = MQTT_STATUS_DISCONNECTED;
-static wifi_status_t wifi_status = WIFI_STATUS_DISCONNECTED;
+static acl_status_t acl_status = ACL_STATUS_INIT;
+static mqtt_status_t mqtt_status = MQTT_STATUS_INIT;
+static wifi_status_t wifi_status = WIFI_STATUS_INIT;
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
@@ -52,10 +56,10 @@ static void anim_timer_cb(lv_timer_t *timer)
     int mqtt_blink = timer_ctx->mqtt_blink;
     //lv_obj_t *scr = timer_ctx->scr;
 
-    if (acl_status == ACL_STATUS_DOWNLOADING) {
-        lv_obj_set_style_opa(label_acl, count * 16, 0);
+    if (acl_status == ACL_STATUS_DOWNLOADING || acl_status == ACL_STATUS_DOWNLOAD_PROGRESS) {
+        lv_obj_set_style_opa(label_acl_status, (count * 12) + 64, 0);
     } else {
-        lv_obj_set_style_opa(label_acl, 255, 0);
+        lv_obj_set_style_opa(label_acl_status, 255, 0);
     }
 
     if (mqtt_status == MQTT_STATUS_DATA_SENT || mqtt_status == MQTT_STATUS_DATA_RECEIVED) {
@@ -72,23 +76,13 @@ static void anim_timer_cb(lv_timer_t *timer)
         lv_obj_set_style_opa(label_mqtt, 255, 0);
     }
     if (wifi_status == WIFI_STATUS_ERROR) {
-        if (count < 7) {
-          lv_img_set_src(img_wifi, LV_SYMBOL_DUMMY LV_SYMBOL_WARNING);
-        } else {
-          lv_img_set_src(img_wifi, &wifi_0);
-        }
+        lv_obj_set_style_opa(label_wifi_status, (count < 7) ? 255 : 0, 0);
     } else if (wifi_status == WIFI_STATUS_DISCONNECTED) {
-      if (count < 7) {
-        lv_img_set_src(img_wifi, LV_SYMBOL_DUMMY LV_SYMBOL_CLOSE);
-      } else {
-        lv_img_set_src(img_wifi, &wifi_0);
-      }
+        lv_obj_set_style_opa(label_wifi_status, (count < 7) ? 255 : 0, 0);
     } else if (wifi_status == WIFI_STATUS_CONNECTING) {
-      if (count < 7) {
-        lv_img_set_src(img_wifi, LV_SYMBOL_DUMMY LV_SYMBOL_REFRESH);
-      } else {
-        lv_img_set_src(img_wifi, &wifi_0);
-      }
+        lv_obj_set_style_opa(label_wifi_status, (count / 2 < 4) == 0 ? 255 : 0, 0);
+    } else {
+        lv_obj_set_style_opa(label_wifi_status, 255, 0);
     }
 
     if (count_dir) {
@@ -109,28 +103,40 @@ static void anim_timer_cb(lv_timer_t *timer)
 
 void ui_idle_set_acl_status(acl_status_t status)
 {
-    lv_color_t color = lv_palette_main(LV_PALETTE_GREY);
     switch(status) {
         case ACL_STATUS_INIT:
-        color = lv_palette_main(LV_PALETTE_GREY);
-        break;
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREY), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_CLOSE);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
+            break;
         case ACL_STATUS_ERROR:
-        color = lv_palette_lighten(LV_PALETTE_RED, 2);
-        break;
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_RED), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_WARNING);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
+            break;
         case ACL_STATUS_DOWNLOADING:
-        color = lv_palette_main(LV_PALETTE_CYAN);
-        break;
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_CYAN), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_DOWNLOAD);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(90,90,90), 0);
+            break;
         case ACL_STATUS_DOWNLOADED_UPDATED:
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            break;
         case ACL_STATUS_DOWNLOADED_SAME_HASH:
-        color = lv_palette_main(LV_PALETTE_GREEN);
-        break;
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            break;
         case ACL_STATUS_CACHED:
-        color = lv_palette_main(LV_PALETTE_AMBER);
-        break;
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_AMBER), 0);
+            lv_label_set_text(label_acl_status, LV_SYMBOL_FILE);
+            lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            break;
         default:
         break;
     }
-    lv_obj_set_style_text_color(label_acl, color, 0);
     acl_status = status;
 }
 
@@ -169,24 +175,29 @@ void ui_idle_set_wifi_status(wifi_status_t status)
     lv_color_t color = lv_palette_main(LV_PALETTE_GREY);
     switch(status) {
         case WIFI_STATUS_INIT:
-        color = lv_palette_main(LV_PALETTE_GREY);
-        break;
+            color = lv_palette_main(LV_PALETTE_GREY);
+            lv_label_set_text(label_wifi_status, LV_SYMBOL_CLOSE);
+            break;
         case WIFI_STATUS_ERROR:
-        color = lv_palette_lighten(LV_PALETTE_RED, 2);
-        break;
+            color = lv_palette_lighten(LV_PALETTE_RED, 2);
+            lv_label_set_text(label_wifi_status, LV_SYMBOL_WARNING);
+            break;
         case WIFI_STATUS_DISCONNECTED:
-        color = lv_palette_lighten(LV_PALETTE_ORANGE, 1);
-        break;
+            color = lv_palette_lighten(LV_PALETTE_ORANGE, 1);
+            lv_label_set_text(label_wifi_status, LV_SYMBOL_CLOSE);
+            break;
         case WIFI_STATUS_CONNECTING:
-        color = lv_palette_main(LV_PALETTE_CYAN);
-        break;
+            color = lv_palette_main(LV_PALETTE_CYAN);
+            lv_label_set_text(label_wifi_status, LV_SYMBOL_REFRESH);
+            break;
         case WIFI_STATUS_CONNECTED:
-        color = lv_palette_main(LV_PALETTE_GREEN);
-        break;
+            color = lv_palette_main(LV_PALETTE_GREEN);
+            lv_label_set_text(label_wifi_status, "");
+            break;
         default:
-        break;
+            break;
     }
-    lv_obj_set_style_text_color(img_wifi, color, 0);
+    lv_obj_set_style_text_color(label_wifi_status, color, 0);
     wifi_status = status;
 }
 
@@ -195,15 +206,15 @@ void ui_idle_set_rssi(int rssi)
 {
     if (wifi_status == WIFI_STATUS_CONNECTED) {
         if (rssi >= -55) {
-            lv_img_set_src(img_wifi, &wifi_4);
+            lv_img_set_src(img_wifi_signal, &wifi_4);
         } else if (rssi >= -65) {
-            lv_img_set_src(img_wifi, &wifi_3);
+            lv_img_set_src(img_wifi_signal, &wifi_3);
         } else if (rssi >= -75) {
-            lv_img_set_src(img_wifi, &wifi_2);
+            lv_img_set_src(img_wifi_signal, &wifi_2);
         } else if (rssi >= -85) {
-            lv_img_set_src(img_wifi, &wifi_1);
+            lv_img_set_src(img_wifi_signal, &wifi_1);
         } else if (rssi >= -95) {
-            lv_img_set_src(img_wifi, &wifi_0);
+            lv_img_set_src(img_wifi_signal, &wifi_0);
         }
     }
 }
@@ -256,16 +267,7 @@ lv_obj_t* ui_idle_create(void)
     lv_style_set_outline_width(&gstyle, 0);
     lv_style_set_outline_pad(&gstyle, 0);
     lv_style_set_border_width(&gstyle, 0);
-    //lv_style_set_border_color(&gstyle, lv_color_make(220,220,220));
     lv_style_set_pad_all(&gstyle, 0);
-    /*
-    lv_style_set_pad_left(&gstyle, 2);
-    lv_style_set_pad_right(&gstyle, 2);
-    lv_style_set_pad_top(&gstyle, 2);
-    lv_style_set_pad_bottom(&gstyle, 2);
-    lv_style_set_pad_row(&gstyle, 2);
-    lv_style_set_pad_column(&gstyle, 2);
-    */
 
     static lv_coord_t col_dsc[] = {40, 40, 40, 40, LV_GRID_TEMPLATE_LAST};
     static lv_coord_t row_dsc[] = {40, 40, LV_GRID_TEMPLATE_LAST};
@@ -280,20 +282,42 @@ lv_obj_t* ui_idle_create(void)
 
     lv_obj_add_style(grid, &style, 0);
 
-
-    label_acl = make_grid_icon(grid, 1, 1, &gstyle, LV_SYMBOL_DOWNLOAD);
-    label_mqtt = make_grid_icon(grid, 1, 2, &gstyle, LV_SYMBOL_SHUFFLE);
-    label_battery = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
-
-
+    // WIFI STATUS
     lv_obj_t* wifi_cont = lv_obj_create(grid);
     lv_obj_set_grid_cell(wifi_cont, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
     lv_obj_set_size(wifi_cont, 30, 30);
     lv_obj_add_style(wifi_cont, &style, 0);
-    img_wifi = lv_img_create(wifi_cont);
-    lv_img_set_src(img_wifi, &wifi_0);
-    lv_obj_align(img_wifi, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_text_font(img_wifi, &lv_font_montserrat_20, 0);
+    img_wifi_signal = lv_img_create(wifi_cont);
+    lv_img_set_src(img_wifi_signal, &wifi_0);
+    lv_obj_align(img_wifi_signal, LV_ALIGN_CENTER, 0, -2);
+
+    label_wifi_status = lv_label_create(wifi_cont);
+    lv_label_set_text_static(label_wifi_status, LV_SYMBOL_CLOSE);
+    lv_obj_align(label_wifi_status, LV_ALIGN_TOP_LEFT, 3, 3);
+    lv_obj_set_style_text_font(label_wifi_status, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(label_wifi_status, lv_palette_main(LV_PALETTE_GREY), 0);
+
+
+    // ACL STATUS
+    lv_obj_t* acl_cont = lv_obj_create(grid);
+    lv_obj_set_grid_cell(acl_cont, LV_GRID_ALIGN_STRETCH, 1, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
+    lv_obj_set_size(acl_cont, 32, 32);
+    lv_obj_add_style(acl_cont, &style, 0);
+    img_acl_status = lv_img_create(acl_cont);
+    lv_img_set_src(img_acl_status, &rfid_tag);
+    lv_obj_align(img_acl_status, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_img_recolor_opa(img_acl_status, LV_OPA_COVER, 0);
+    lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
+
+    label_acl_status = lv_label_create(acl_cont);
+    lv_label_set_text_static(label_acl_status, LV_SYMBOL_CLOSE);
+    lv_obj_align(label_acl_status, LV_ALIGN_BOTTOM_RIGHT, -4, -4);
+    lv_obj_set_style_text_font(label_acl_status, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREY), 0);
+
+    label_mqtt = make_grid_icon(grid, 1, 2, &gstyle, LV_SYMBOL_SHUFFLE);
+    label_battery = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
+
 
 
     label_time = lv_label_create(grid);
@@ -303,15 +327,6 @@ lv_obj_t* ui_idle_create(void)
     lv_obj_set_style_text_font(label_time, &lv_font_montserrat_36, 0);
     lv_label_set_text_static(label_time, "12:00pm");
     lv_obj_set_style_text_color(label_time, lv_color_white(), 0);
-
-    /*
-    label_scan = lv_label_create(grid);
-    lv_label_set_long_mode(label_scan, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_set_grid_cell(label_scan, LV_GRID_ALIGN_STRETCH, 0, 4, LV_GRID_ALIGN_STRETCH, 0, 1);
-    lv_label_set_text_static(label_scan, "12:00am      SCAN RFID BELOW     ");
-    lv_obj_set_style_text_font(label_scan, &lv_font_montserrat_40, 0);
-    //lv_obj_set_style_text_color(label_scan, lv_color_black(), 0);
-    */
 
     my_tim_ctx.scr = scr;
     timer = lv_timer_create(anim_timer_cb, 100, &my_tim_ctx);

@@ -11,6 +11,7 @@ file(GLOB_RECURSE SOURCES  "lv_drivers/*.c" "lvgl/*.c" "ui_wrapper/*.c" "ui_wrap
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin) 
 SET(CMAKE_CXX_FLAGS "-O3")
+link_libraries("-lm")
 
 find_package(SDL2 REQUIRED SDL2)
 include_directories(${SDL2_INCLUDE_DIRS})
