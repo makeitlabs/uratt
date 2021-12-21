@@ -37,7 +37,11 @@
 #ifndef _DISPLAY_TASK
 #define _DISPLAY_TASK
 
+#ifndef UI_SIMULATOR
 #include "freertos/FreeRTOS.h"
+#else
+typedef int BaseType_t;
+#endif
 
 void display_task(void *pvParameters);
 void display_init();

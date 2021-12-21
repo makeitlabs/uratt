@@ -1,5 +1,10 @@
-#include <math.h>
+#ifdef LV_LVGL_H_INCLUDE_SIMPLE
 #include "lvgl.h"
+#else
+#include "lvgl/lvgl.h"
+#endif
+
+#include <math.h>
 
 #ifndef PI
 #define PI  (3.14159f)

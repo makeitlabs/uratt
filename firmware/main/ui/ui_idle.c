@@ -1,6 +1,11 @@
+#ifdef LV_LVGL_H_INCLUDE_SIMPLE
+#include "lvgl.h"
+#else
+#include "lvgl/lvgl.h"
+#endif
+
 #include <stdio.h>
 #include <math.h>
-#include "lvgl.h"
 #include "display_task.h"
 #include "ui_idle.h"
 

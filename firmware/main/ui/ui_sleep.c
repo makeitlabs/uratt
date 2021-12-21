@@ -1,5 +1,10 @@
-#include <stdio.h>
+#ifdef LV_LVGL_H_INCLUDE_SIMPLE
 #include "lvgl.h"
+#else
+#include "lvgl/lvgl.h"
+#endif
+
+#include <stdio.h>
 
 static lv_obj_t *label_count;
 
