@@ -202,7 +202,7 @@ void ui_idle_set_rssi(int rssi)
             lv_img_set_src(img_wifi, &wifi_2);
         } else if (rssi >= -85) {
             lv_img_set_src(img_wifi, &wifi_1);
-        } else if (rssi >= -90) {
+        } else if (rssi >= -95) {
             lv_img_set_src(img_wifi, &wifi_0);
         }
     }

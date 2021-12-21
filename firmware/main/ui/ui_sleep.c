@@ -31,6 +31,7 @@ lv_obj_t* ui_sleep_create()
   label_count = lv_label_create(scr);
   lv_obj_set_width(label_count, 156);
   lv_obj_align_to(label_count, label_sleep, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+  lv_label_set_text_static(label_count, "");
   lv_obj_set_style_text_font(label_count, &lv_font_montserrat_18, 0);
   lv_obj_set_style_text_color(label_count, lv_color_black(), 0);
 
