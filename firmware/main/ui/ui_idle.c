@@ -289,7 +289,7 @@ lv_obj_t* ui_idle_create(void)
     lv_obj_add_style(wifi_cont, &style, 0);
     img_wifi_signal = lv_img_create(wifi_cont);
     lv_img_set_src(img_wifi_signal, &wifi_0);
-    lv_obj_align(img_wifi_signal, LV_ALIGN_CENTER, 0, -2);
+    lv_obj_align(img_wifi_signal, LV_ALIGN_CENTER, 2, -2);
 
     label_wifi_status = lv_label_create(wifi_cont);
     lv_label_set_text_static(label_wifi_status, LV_SYMBOL_CLOSE);
