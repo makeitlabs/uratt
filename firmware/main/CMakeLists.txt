@@ -2,9 +2,9 @@ file(GLOB_RECURSE SOURCES *.c )
 file(GLOB_RECURSE NET_SOURCES net/*.c )
 file(GLOB_RECURSE SYSTEM_SOURCES system/*.c )
 file(GLOB_RECURSE UI_SOURCES ui/*.c )
-file(GLOB_RECURSE IMAGE_SOURCES images/*.c)
+file(GLOB_RECURSE IMAGE_SOURCES ui/images/*.c)
 
-set (include_dirs "./" "net" "system" "ui" "images")
+set (include_dirs "./" "net" "system" "ui" "ui/images")
 
 idf_component_register(
   SRCS
