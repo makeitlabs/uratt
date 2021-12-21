@@ -47,8 +47,8 @@
 #include "system_task.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
+#include "main_task.h"
 #include "display_task.h"
-#include "net_task.h"
 
 static const char *TAG = "system_task";
 
@@ -132,12 +132,13 @@ void system_task(void *pvParameters)
 
     if (pwr_loss != last_pwr_loss) {
       if (pwr_loss == 0) {
+        main_task_event(MAIN_EVT_POWER_LOSS);
         ESP_LOGW(TAG, "power lost!");
         time_pwr_loss = now;
         last_time_pwr_loss = now;
       } else {
+        main_task_event(MAIN_EVT_POWER_RESTORED);
         ESP_LOGI(TAG, "power restored!");
-        display_show_idle(1000, true);
       }
 
       last_pwr_loss = pwr_loss;
@@ -146,16 +147,12 @@ void system_task(void *pvParameters)
 
     if (pwr_loss == 0) {
         time_t lost = (now - last_time_pwr_loss);
-
         if (lost != last_lost) {
-          if (lost == 5) {
-            display_show_sleep();
-          }
-          if (lost > 6 && lost < 30) {
+          if (lost < 30) {
+            ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
             display_sleep_countdown(30 - lost);
           } else if (lost >= 30) {
-            ESP_LOGW(TAG, "power lost for %ld seconds", now - time_pwr_loss);
-            net_cmd_queue(NET_CMD_DISCONNECT);
+            main_task_event(MAIN_EVT_SLEEPING);
             taskYIELD();
 
             ESP_LOGI(TAG, "going to sleep");
@@ -170,7 +167,6 @@ void system_task(void *pvParameters)
             //lcd_reset();
             //lcd_set_backlight(OFF);
 
-
             esp_light_sleep_start();
 
             ESP_LOGI(TAG, "waking up");
@@ -184,7 +180,8 @@ void system_task(void *pvParameters)
 
             //lcd_set_backlight(ON);
 
-            net_cmd_queue(NET_CMD_CONNECT);
+            main_task_event(MAIN_EVT_WAKING);
+            taskYIELD();
 
             last_time_pwr_loss = now;
           }

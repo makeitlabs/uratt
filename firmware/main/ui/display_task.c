@@ -58,7 +58,6 @@ static const char *TAG = "display_task";
 #define DISPLAY_QUEUE_DEPTH 4
 #define DISPLAY_EVT_BUF_SIZE 32
 
-
 typedef enum {
     DISP_CMD_WIFI_STATUS = 0x00,
     DISP_CMD_WIFI_RSSI,
@@ -67,27 +66,22 @@ typedef enum {
     DISP_CMD_CHARGE_STATUS,
     DISP_CMD_SLEEP_COUNTDOWN,
     DISP_CMD_ALLOWED_MSG,
-    DISP_CMD_SHOW_IDLE,
-    DISP_CMD_SHOW_ACCESS,
-    DISP_CMD_SHOW_SLEEP
+    DISP_CMD_SHOW_SCREEN,
 } display_cmd_t;
 
 typedef struct display_evt {
     display_cmd_t cmd;
     char buf[DISPLAY_EVT_BUF_SIZE];
     union {
+        screen_t screen;
         acl_status_t acl_status;
         mqtt_status_t mqtt_status;
         wifi_status_t wifi_status;
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
-        uint16_t delay;
         uint8_t countdown;
     } params;
-    union {
-        bool destroy;
-    } extparams;
 } display_evt_t;
 
 static lv_obj_t *s_scr = NULL;
@@ -171,36 +165,13 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 { return -1; }
 #endif
 
-BaseType_t display_show_idle(uint16_t delay, bool destroy)
+BaseType_t display_show_screen(screen_t screen)
 #ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
-    evt.params.delay = delay;
-    evt.extparams.destroy = destroy;
-    evt.cmd = DISP_CMD_SHOW_IDLE;
+    evt.params.screen = screen;
+    evt.cmd = DISP_CMD_SHOW_SCREEN;
 
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
-BaseType_t display_show_access()
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_SHOW_ACCESS;
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
-BaseType_t display_show_sleep()
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_SHOW_SLEEP;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 #else
@@ -233,11 +204,11 @@ void display_task(void *pvParameters)
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
 
-
-    lv_obj_t *scr_splash = ui_splash_create();
-    lv_scr_load(scr_splash);
+    //lv_obj_t *scr_splash = ui_splash_create();
 
     lv_obj_t *scr_idle = ui_idle_create();
+    lv_obj_t *scr_access = ui_access_create();
+    lv_obj_t *scr_sleep = ui_sleep_create();
 
     while(1) {
         display_evt_t evt;
@@ -278,19 +249,22 @@ void display_task(void *pvParameters)
             case DISP_CMD_ALLOWED_MSG:
                 ui_access_set_user(evt.buf, evt.params.allowed);
                 break;
-            case DISP_CMD_SHOW_IDLE:
-                lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 750, evt.params.delay, evt.extparams.destroy);
-                break;
-            case DISP_CMD_SHOW_ACCESS:
-                {
-                  lv_obj_t *scr_access = ui_access_create();
-                  lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
-                }
-                break;
-            case DISP_CMD_SHOW_SLEEP:
-                {
-                  lv_obj_t *scr_sleep = ui_sleep_create();
-                  lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 1000, 0, false);
+            case DISP_CMD_SHOW_SCREEN:
+                switch (evt.params.screen) {
+                  case SCREEN_SPLASH:
+                    //lv_scr_load(scr_splash);
+                    break;
+                  case SCREEN_IDLE:
+                    lv_scr_load(scr_idle);
+                    //lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 750, evt.params.delay, evt.extparams.destroy);
+                    break;
+                  case SCREEN_ACCESS:
+                    lv_scr_load(scr_access);
+                    //lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
+                    break;
+                  case SCREEN_SLEEP:
+                    //lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 1000, 0, false);
+                    lv_scr_load(scr_sleep);
                 }
                 break;
             }
