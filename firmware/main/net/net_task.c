@@ -161,6 +161,34 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
   net_cmd_queue(NET_CMD_INIT);
 }
 
+
+static void net_wifi_configure(void)
+{
+  wifi_config_t wifi_config = {
+      .sta = {
+          .scan_method = WIFI_FAST_SCAN,
+          .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+          .threshold.rssi = -127,
+          .threshold.authmode = WIFI_AUTH_WPA_PSK,
+      },
+  };
+
+  char *conf_ssid;
+  char *conf_password;
+  config_get_string("wifi_ssid", &conf_ssid, "ssid");
+  config_get_string("wifi_password", &conf_password, "password");
+  strncpy((char*)wifi_config.sta.ssid, conf_ssid, sizeof(wifi_config.sta.ssid));
+  strncpy((char*)wifi_config.sta.password, conf_password, sizeof(wifi_config.sta.password));
+
+  ESP_LOGW(TAG, "WiFi SSID is %s", conf_ssid);
+
+  free(conf_ssid);
+  free(conf_password);
+
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+  ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+}
+
 static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
@@ -168,6 +196,7 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
 
     display_wifi_status(WIFI_STATUS_DISCONNECTED);
 
+    net_wifi_configure();
 
     esp_err_t err = esp_wifi_connect();
     if (err == ESP_ERR_WIFI_NOT_STARTED) {
@@ -202,28 +231,8 @@ static esp_netif_t *net_wifi_start(void)
 
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
+    net_wifi_configure();
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .scan_method = WIFI_FAST_SCAN,
-            .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-            .threshold.rssi = -127,
-            .threshold.authmode = WIFI_AUTH_WPA_PSK,
-        },
-    };
-
-    char *conf_ssid;
-    char *conf_password;
-    config_get_string("wifi_ssid", &conf_ssid, "ssid");
-    config_get_string("wifi_password", &conf_password, "password");
-    strncpy((char*)wifi_config.sta.ssid, conf_ssid, sizeof(wifi_config.sta.ssid));
-    strncpy((char*)wifi_config.sta.password, conf_password, sizeof(wifi_config.sta.password));
-    free(conf_ssid);
-    free(conf_password);
-
-    ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     display_wifi_status(WIFI_STATUS_CONNECTING);
     esp_wifi_connect();
@@ -408,7 +417,7 @@ void net_task(void *pvParameters)
           case NET_CMD_INIT:
             net_sntp_init();
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
-            //net_mqtt_start();
+            net_mqtt_start();
             break;
 
           case NET_CMD_DISCONNECT:
