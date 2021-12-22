@@ -40,14 +40,11 @@
 #include "freertos/task.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
-#include "nvs_flash.h"
-#include "esp_vfs_dev.h"
 
 #include "esp_log.h"
 #include "system.h"
 
 #include "console.h"
-#include "sdcard.h"
 #include "spiflash.h"
 #include "display_task.h"
 #include "net_task.h"
@@ -60,15 +57,6 @@
 static const char *TAG = "main";
 
 
-static void nvs_init(void)
-{
-    esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK( nvs_flash_erase() );
-        err = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(err);
-}
 
 // experimental windowed logging/command line
 /*
@@ -91,20 +79,18 @@ void app_main(void)
 
     ESP_LOGI(TAG, "initializing");
 
-    nvs_init();
-
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     system_init();
+
 #ifdef DISPLAY_ENABLED
     display_init();
 #endif
+
     beep_init();
     door_init();
 
-    sdcard_init();
-    spiflash_init();
     rfid_init();
     main_task_init();
 

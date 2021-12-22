@@ -42,9 +42,12 @@
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 #include "esp_system.h"
+#include "nvs_flash.h"
+#include "esp_vfs_dev.h"
 #include "esp_log.h"
 #include "system.h"
 #include "system_task.h"
+#include "spiflash.h"
 #include "driver/gpio.h"
 #include "esp_sleep.h"
 #include "main_task.h"
@@ -59,6 +62,7 @@ typedef struct system_evt {
 } system_evt_t;
 
 static QueueHandle_t m_q;
+
 
 
 void power_mgmt_init(void)
@@ -78,8 +82,21 @@ void power_mgmt_init(void)
   gpio_set_direction(GPIO_PIN_LOW_BAT, GPIO_MODE_INPUT);
 }
 
+static void nvs_init(void)
+{
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK( nvs_flash_erase() );
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(err);
+}
+
 void system_init(void)
 {
+  nvs_init();
+  spiflash_init();
+
   m_q = xQueueCreate(SYSTEM_QUEUE_DEPTH, sizeof(system_evt_t));
   if (m_q == NULL) {
       ESP_LOGE(TAG, "FATAL: Cannot create system task queue!");
