@@ -48,11 +48,9 @@
 #include "freertos/task.h"
 
 #include "system.h"
-
 #include "rfid_task.h"
-#include "sdcard.h"
-
 #include "main_task.h"
+#include "net_https.h"
 
 #define SER_BUF_SIZE (256)
 #define SER_RFID_TXD  (GPIO_PIN_TXD1)
@@ -87,7 +85,7 @@ void rfid_init()
 
     g_acl_mutex = xSemaphoreCreateMutex();
     m_member_record_mutex = xSemaphoreCreateMutex();
-    if (!g_sdcard_mutex || !m_member_record_mutex) {
+    if (!g_acl_mutex || !m_member_record_mutex) {
         ESP_LOGE(TAG, "Could not create mutexes.");
         return;
     }
@@ -130,32 +128,31 @@ uint8_t rfid_lookup(uint32_t tag, member_record_t *member)
     char tag_ascii[32];
     char tag_sha224[65];
     char line[LINE_SIZE];
+    char *conf_acl_filename;
 
     snprintf(tag_ascii, sizeof(tag_ascii), "%10.10u", tag);
     rfid_hash_sha224(tag_ascii, strlen(tag_ascii), tag_sha224, sizeof(tag_sha224));
 
-    ESP_LOGI(TAG, "RFID tag: %10.10u", tag);
-    ESP_LOGI(TAG, "RFID tag SHA224 hexdigest: %s", tag_sha224);
+    ESP_LOGD(TAG, "RFID tag: %10.10u", tag);
+    ESP_LOGD(TAG, "RFID tag SHA224 hexdigest: %s", tag_sha224);
 
     // Open file for reading
-    ESP_LOGI(TAG, "Reading ACL file from SD card...");
+    ESP_LOGD(TAG, "Reading ACL file...");
 
-    xSemaphoreTake(g_sdcard_mutex, portMAX_DELAY);
     xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
 
-    FILE *f = fopen("/sdcard/acl.txt", "r");
+    net_https_get_acl_filename(&conf_acl_filename);
+
+    FILE *f = fopen(conf_acl_filename, "r");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open ACL file for reading!");
-        xSemaphoreGive(g_sdcard_mutex);
         xSemaphoreGive(g_acl_mutex);
         return 0;
     }
+    free(conf_acl_filename);
 
     uint8_t found = 0;
     while ((fgets(line, LINE_SIZE, f) != NULL) && !found) {
-        //username,key,value,allowed,hashedCard,lastAccessed
-        //ESP_LOGI(TAG, "%s", line);
-
         char *str = line;
         char *token;
         char *fields[10];
@@ -174,13 +171,12 @@ uint8_t rfid_lookup(uint32_t tag, member_record_t *member)
             char *hashed_card = fields[4];
             //char *last_accessed = fields[5];
 
-            //ESP_LOGI(TAG, "comparing %s to %s", tag_sha224, hashed_card);
+            ESP_LOGD(TAG, "comparing %s to %s", tag_sha224, hashed_card);
             if (strcmp(tag_sha224, hashed_card) == 0) {
-                ESP_LOGI(TAG, "found tag for user %s, allowed=%s", username, allowed);
+                ESP_LOGI(TAG, "found tag for user %s, access %s", username, allowed);
                 found = 1;
 
                 strncpy(member->name, username, FIELD_SIZE);
-                //strncpy(member->last_accessed, last_accessed, FIELD_SIZE);
                 member->allowed = (strcmp(allowed, "allowed") == 0);
             }
         }
@@ -188,8 +184,6 @@ uint8_t rfid_lookup(uint32_t tag, member_record_t *member)
     fclose(f);
 
     xSemaphoreGive(g_acl_mutex);
-    xSemaphoreGive(g_sdcard_mutex);
-
     return found;
 }
 
@@ -228,9 +222,9 @@ void rfid_task(void *pvParameters)
                 uint32_t tag = (rxbuf[4]<<24) | (rxbuf[5]<<16) | (rxbuf[6]<<8) | rxbuf[7];
 
                 char s[80];
-                ESP_LOGI(TAG, "Good RFID tag checksum, bytes follow:");
+                ESP_LOGD(TAG, "Good RFID tag checksum, bytes follow:");
                 snprintf(s, sizeof(s), "%10.10u %2.2X %2.2X %2.2X %2.2X [%2.2X == %2.2X]", tag, rxbuf[4], rxbuf[5], rxbuf[6], rxbuf[7], rxbuf[8], checksum_calc);
-                ESP_LOGI(TAG, "%s", s);
+                ESP_LOGD(TAG, "%s", s);
 
                 main_task_event(MAIN_EVT_RFID_PRE_SCAN);
 
@@ -247,9 +241,9 @@ void rfid_task(void *pvParameters)
 
             } else {
                 char s[80];
-                ESP_LOGI(TAG, "Bad RFID tag checksum, bytes follow:");
+                ESP_LOGW(TAG, "Bad RFID tag checksum, bytes follow:");
                 snprintf(s, sizeof(s), "%2.2X %2.2X %2.2X %2.2X [%2.2X != %2.2X]", rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3], rxbuf[4], checksum_calc);
-                ESP_LOGI(TAG, "%s", s);
+                ESP_LOGW(TAG, "%s", s);
             }
         }
     }
