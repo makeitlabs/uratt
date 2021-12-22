@@ -43,46 +43,57 @@
 
 static const char *TAG = "spiflash";
 
-// Handle of the wear levelling library instance
-static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+// Handles of the wear levelling library instance
+static wl_handle_t s_config_wl_handle = WL_INVALID_HANDLE;
+static wl_handle_t s_work_wl_handle = WL_INVALID_HANDLE;
 
-// Mount path for the partition
-const char *base_path = "/spiflash";
+// Mount paths for the partitions
+const char *config_path = "/config";
 
-// Flash partition name, from partitions.csv
-const char *flash_partition = "storage";
+// Flash partition names, from partitions.csv
+const char *config_partition = "config";
+
+static esp_err_t spiflash_mount(const char* partition, const char* path, wl_handle_t* handle)
+{
+  // To mount device we need name of device partition, define base_path
+  // and allow format partition in case if it is new one and was not formatted before
+  const esp_vfs_fat_mount_config_t mount_config = {
+          .max_files = 4,
+          .format_if_mount_failed = true,
+          .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
+  };
+  esp_err_t err = esp_vfs_fat_spiflash_mount(path, partition, &mount_config, handle);
+  if (err != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to mount spiflash partition %s (%s)", partition, esp_err_to_name(err));
+      return err;
+  }
+  ESP_LOGI(TAG, "Mounted spiflash partition '%s' to '%s'", partition, path);
+
+  return ESP_OK;
+}
 
 esp_err_t spiflash_init(void)
 {
-    ESP_LOGI(TAG, "Mounting SPI Flash FAT filesystem...");
-    // To mount device we need name of device partition, define base_path
-    // and allow format partition in case if it is new one and was not formatted before
-    const esp_vfs_fat_mount_config_t mount_config = {
-            .max_files = 4,
-            .format_if_mount_failed = true,
-            .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
-    };
-    esp_err_t err = esp_vfs_fat_spiflash_mount(base_path, flash_partition, &mount_config, &s_wl_handle);
+    ESP_LOGI(TAG, "Mounting SPI Flash FAT filesystems...");
 
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to mount SPI Flash FATFS (%s)", esp_err_to_name(err));
-        return err;
-    }
+    return spiflash_mount(config_partition, config_path, &s_config_wl_handle);
+}
 
-    ESP_LOGI(TAG, "Mounted SPI Flash partition '%s' to '%s'", flash_partition, base_path);
-    return ESP_OK;
+
+static esp_err_t spiflash_unmount(const char* partition, const char* path, wl_handle_t* handle)
+{
+  ESP_LOGI(TAG, "Unmounting spiflash partition %s...", partition);
+  esp_err_t err = esp_vfs_fat_spiflash_unmount(path, *handle);
+
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to unmount spiflash partition %s (%s)", partition, esp_err_to_name(err));
+    return err;
+  }
+  ESP_LOGI(TAG, "Unmounted spiflash partition '%s'.", partition);
+  return ESP_OK;
 }
 
 esp_err_t spiflash_deinit(void)
 {
-  // Unmount FATFS
-  ESP_LOGI(TAG, "Unmounting SPI Flash FAT filesystem...");
-  esp_err_t err = esp_vfs_fat_spiflash_unmount(base_path, s_wl_handle);
-
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to unmount SPI Flash FATFS (%s)", esp_err_to_name(err));
-    return err;
-  }
-  ESP_LOGI(TAG, "Unmounted SPI Flash from '%s'.", base_path);
-  return ESP_OK;
+  return spiflash_unmount(config_partition, config_path, &s_config_wl_handle);
 }
