@@ -134,7 +134,7 @@ void ui_idle_set_acl_status(acl_status_t status)
             lv_obj_set_style_opa(label_time, 255, 0);
             break;
         case ACL_STATUS_DOWNLOADED_SAME_HASH:
-            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
+            lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_AMBER), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
@@ -242,7 +242,7 @@ void ui_idle_set_time(char *time_str)
 void ui_idle_set_acl_download_progress(int percent)
 {
   lv_label_set_text_fmt(label_progress, "%d%%", percent);
-  lv_bar_set_value(bar_progress, percent, LV_ANIM_ON);
+  lv_bar_set_value(bar_progress, percent, LV_ANIM_OFF);
 }
 
 lv_obj_t* make_grid_icon(lv_obj_t* grid, int row, int col, lv_style_t* style, char* symbol )
@@ -351,7 +351,6 @@ lv_obj_t* ui_idle_create(void)
     lv_style_set_border_width(&style_bg, 2);
     lv_style_set_pad_all(&style_bg, 2);
     lv_style_set_radius(&style_bg, 0);
-    lv_style_set_anim_time(&style_bg, 1000);
 
     lv_style_init(&style_indic);
     lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
@@ -378,7 +377,6 @@ lv_obj_t* ui_idle_create(void)
     lv_obj_set_style_text_font(label_progress, &lv_font_montserrat_14, 0);
     lv_label_set_text_static(label_progress, "");
     lv_obj_set_style_text_color(label_progress, lv_color_white(), 0);
-
 
     my_tim_ctx.scr = scr;
     timer = lv_timer_create(anim_timer_cb, 100, &my_tim_ctx);
