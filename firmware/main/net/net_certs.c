@@ -94,9 +94,9 @@ esp_err_t net_certs_init()
   char *conf_ca_cert;
   char *conf_client_cert;
   char *conf_client_key;
-  config_get_string("ca_cert", &conf_ca_cert, "/spiflash/ca.crt");
-  config_get_string("client_cert", &conf_client_cert, "/spiflash/client.crt");
-  config_get_string("client_key", &conf_client_key, "/spiflash/client.key");
+  config_get_string("ca_cert", &conf_ca_cert, "/config/ca.crt");
+  config_get_string("client_cert", &conf_client_cert, "/config/client.crt");
+  config_get_string("client_key", &conf_client_key, "/config/client.key");
 
 
   if (net_certs_load(conf_ca_cert, &g_ca_cert) != ESP_OK) {
