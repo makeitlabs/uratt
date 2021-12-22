@@ -48,23 +48,7 @@
 #include "https.h"
 #include "sdcard.h"
 
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include "lwip/netdb.h"
-#include "lwip/dns.h"
-#include "lwip/ip4_addr.h"
-
-#include "mbedtls/platform.h"
-#include "mbedtls/net.h"
-#include "mbedtls/debug.h"
-#include "mbedtls/ssl.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/error.h"
-#include "mbedtls/certs.h"
-#include "mbedtls/base64.h"
-
+#include "net_certs.h"
 #include "config.h"
 #include "rfid_task.h"
 #include "net_task.h"
@@ -73,28 +57,34 @@
 
 static const char *TAG = "net_https";
 
-#define WEB_SERVER CONFIG_WEB_SERVER
-#define WEB_PORT CONFIG_WEB_PORT
-#define WEB_URL_PATH CONFIG_WEB_URL_PATH
-#define WEB_BASIC_AUTH_USER CONFIG_WEB_BASIC_AUTH_USER
-#define WEB_BASIC_AUTH_PASS CONFIG_WEB_BASIC_AUTH_PASS
-
 int net_https_init(void)
 {
   ESP_LOGI(TAG, "net_https init");
 
-  display_acl_status(ACL_STATUS_INIT);
+  display_acl_status(ACL_STATUS_INIT, 0);
 
   http_init();
 
   return 0;
 }
 
+void acl_progress(int received, int total)
+{
+  static int last_percent = -1;
+  int percent = received * 100 / total;
+
+  if (percent != last_percent) {
+    display_acl_status(ACL_STATUS_DOWNLOADING, percent);
+  }
+
+  last_percent = percent;
+}
+
 esp_err_t net_https_download_acl()
 {
-  int result = 0;
   int r = ESP_FAIL;
   char web_url[256];
+  char hash_buf[56+1];
 
   char *conf_acl_url_fmt;
   char *conf_acl_resource;
@@ -109,22 +99,40 @@ esp_err_t net_https_download_acl()
 
   ESP_LOGI(TAG, "download ACL from URL: %s", web_url);
 
+  display_acl_status(ACL_STATUS_DOWNLOADING, 0);
+
   char *conf_api_user;
   char *conf_api_password;
   config_get_string("api_user", &conf_api_user, "username");
   config_get_string("api_password", &conf_api_password, "password");
-  r = http_get_file(0, web_url, conf_api_user, conf_api_password, "/sdcard/acl-temp.txt", &result);
+
+  http_get_req_t req = {
+    .url = web_url,
+    .auth_user = conf_api_user,
+    .auth_password = conf_api_password,
+    .filename = "/sdcard/acl-temp.txt",
+    .client_cert_pem = g_client_cert,
+    .client_key_pem = g_client_key,
+    .ca_cert_pem = g_ca_cert,
+    .ssl_insecure = true,
+
+    .progress_cb = acl_progress,
+
+    .hash_buf = hash_buf,
+  };
+
+  r = http_get(&req);
 
   free(conf_api_user);
   free(conf_api_password);
 
-  ESP_LOGD(TAG, "http_get returned %d", result);
+  ESP_LOGD(TAG, "http_get returned %d, %d bytes", req.status, req.content_length);
   if (r != ESP_OK) {
     xSemaphoreGive(g_sdcard_mutex);
     goto failed;
   }
 
-  if (result == 200) {
+  if (req.status == 200) {
     xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
     // delete existing ACL file if it exists
     struct stat st;
@@ -146,12 +154,13 @@ esp_err_t net_https_download_acl()
     }
     xSemaphoreGive(g_acl_mutex);
 
+    display_acl_status(ACL_STATUS_DOWNLOADED_UPDATED, 0);
     net_cmd_queue(NET_CMD_SEND_ACL_UPDATED);
 
     xSemaphoreGive(g_sdcard_mutex);
 
   } else {
-    ESP_LOGE(TAG, "http_get result %d, download ACL failed", result);
+    ESP_LOGE(TAG, "http_get status %d, download ACL failed", req.status);
     return ESP_FAIL;
   }
 
@@ -159,6 +168,7 @@ esp_err_t net_https_download_acl()
   return 0;
 
 failed:
+  display_acl_status(ACL_STATUS_ERROR, 0);
   net_cmd_queue(NET_CMD_SEND_ACL_FAILED);
   return r;
 }
@@ -170,14 +180,30 @@ int net_https_get_file(const char *web_url, const char *filename)
   int r = ESP_FAIL;
 
   ESP_LOGI(TAG, "get file from URL: %s", web_url);
-  r = http_get_file(0, web_url, WEB_BASIC_AUTH_USER, WEB_BASIC_AUTH_PASS, filename, &result);
 
-  ESP_LOGI(TAG, "http_get returned %d", result);
+  http_get_req_t req = {
+    .url = web_url,
+    .auth_user = NULL,
+    .auth_password = NULL,
+    .filename = filename,
+    .client_cert_pem = NULL,
+    .client_key_pem = NULL,
+    .ca_cert_pem = NULL,
+    .ssl_insecure = false,
+
+    .progress_cb = NULL,
+
+    .hash_buf = NULL,
+  };
+
+  r = http_get(&req);
+
+  ESP_LOGI(TAG, "http_get returned %d", req.status);
   if (r != ESP_OK) {
     goto failed;
   }
 
-  if (result == 200) {
+  if (req.status == 200) {
     ESP_LOGI(TAG, "download OK!");
   } else {
     ESP_LOGE(TAG, "http result code %d", result);
