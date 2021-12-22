@@ -171,6 +171,7 @@ void main_task(void *pvParameters)
 
     switch(state) {
     case STATE_INIT:
+      display_show_screen(SCREEN_SPLASH);
       beep_queue(1108, 35, 1, 1);
       beep_queue(1244, 35, 1, 1);
       beep_queue(1864, 35, 1, 1);

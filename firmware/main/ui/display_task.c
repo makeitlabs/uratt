@@ -204,7 +204,7 @@ void display_task(void *pvParameters)
     portTickType last_heartbeat_tick = init_tick;
     int button=0, last_button=0;
 
-    //lv_obj_t *scr_splash = ui_splash_create();
+    lv_obj_t *scr_splash = ui_splash_create();
 
     lv_obj_t *scr_idle = ui_idle_create();
     lv_obj_t *scr_access = ui_access_create();
@@ -252,19 +252,16 @@ void display_task(void *pvParameters)
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {
                   case SCREEN_SPLASH:
-                    //lv_scr_load(scr_splash);
+                    lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
                     break;
                   case SCREEN_IDLE:
-                    lv_scr_load(scr_idle);
-                    //lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM, 750, evt.params.delay, evt.extparams.destroy);
+                    lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 750, 0, false);
                     break;
                   case SCREEN_ACCESS:
-                    lv_scr_load(scr_access);
-                    //lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_TOP, 750, 0, false);
+                    lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
                     break;
                   case SCREEN_SLEEP:
-                    //lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 1000, 0, false);
-                    lv_scr_load(scr_sleep);
+                    lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 2000, 0, false);
                 }
                 break;
             }
