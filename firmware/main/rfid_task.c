@@ -50,7 +50,7 @@
 #include "system.h"
 #include "rfid_task.h"
 #include "main_task.h"
-#include "net_https.h"
+#include "acl.h"
 
 #define SER_BUF_SIZE (256)
 #define SER_RFID_TXD  (GPIO_PIN_TXD1)
@@ -62,7 +62,6 @@ static int uart_num = UART_NUM_1;
 
 static const char *TAG = "rfid_task";
 
-SemaphoreHandle_t g_acl_mutex;
 
 SemaphoreHandle_t m_member_record_mutex;
 member_record_t m_member_record;
@@ -83,13 +82,14 @@ void rfid_init()
     uart_set_pin(uart_num, SER_RFID_TXD, SER_RFID_RXD, SER_RFID_RTS, SER_RFID_CTS);
     uart_driver_install(uart_num, SER_BUF_SIZE * 2, 0, 0, NULL, 0);
 
-    g_acl_mutex = xSemaphoreCreateMutex();
     m_member_record_mutex = xSemaphoreCreateMutex();
-    if (!g_acl_mutex || !m_member_record_mutex) {
+    if (!m_member_record_mutex) {
         ESP_LOGE(TAG, "Could not create mutexes.");
         return;
     }
 }
+
+
 
 BaseType_t rfid_get_member_record(member_record_t* member)
 {
@@ -139,14 +139,15 @@ uint8_t rfid_lookup(uint32_t tag, member_record_t *member)
     // Open file for reading
     ESP_LOGD(TAG, "Reading ACL file...");
 
+
     xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
 
-    net_https_get_acl_filename(&conf_acl_filename);
-
+    acl_get_data_filename(&conf_acl_filename);
     FILE *f = fopen(conf_acl_filename, "r");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open ACL file for reading!");
         xSemaphoreGive(g_acl_mutex);
+        free(conf_acl_filename);
         return 0;
     }
     free(conf_acl_filename);

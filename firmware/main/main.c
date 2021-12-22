@@ -45,7 +45,7 @@
 #include "system.h"
 
 #include "console.h"
-#include "spiflash.h"
+#include "acl.h"
 #include "display_task.h"
 #include "net_task.h"
 #include "rfid_task.h"
@@ -88,6 +88,7 @@ void app_main(void)
     display_init();
 #endif
 
+    acl_init();
     beep_init();
     door_init();
 

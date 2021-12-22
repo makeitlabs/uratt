@@ -45,11 +45,12 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_system.h"
-#include "https.h"
-#include "sdcard.h"
+#include "mbedtls/md.h"
 
+#include "https.h"
 #include "net_certs.h"
 #include "config.h"
+#include "acl.h"
 #include "rfid_task.h"
 #include "net_task.h"
 #include "net_https.h"
@@ -58,16 +59,13 @@
 static const char *TAG = "net_https";
 
 static const size_t url_len = 256;
-static const size_t sha224_len = (56 + 1);
 
 int net_https_init(void)
 {
   ESP_LOGI(TAG, "net_https init");
 
-  display_acl_status(ACL_STATUS_INIT, 0);
 
   http_init();
-
   return 0;
 }
 
@@ -83,14 +81,10 @@ void acl_progress(int received, int total)
   last_percent = percent;
 }
 
-esp_err_t net_https_get_acl_filename(char **s)
-{
-  return config_get_string("acl_file", s, "/config/acl.csv");
-}
 
 esp_err_t net_https_download_acl()
 {
-  int r = ESP_FAIL;
+  esp_err_t r = ESP_FAIL;
   char *url = NULL;
   char *hash_buf = NULL;
   char *hash_expected = NULL;
@@ -111,33 +105,16 @@ esp_err_t net_https_download_acl()
   config_get_string("acl_resource", &conf_acl_resource, "frontdoor");
   snprintf(url, url_len, conf_acl_url_fmt, conf_acl_resource);
 
-  net_https_get_acl_filename(&conf_acl_filename);
+  acl_get_data_filename(&conf_acl_filename);
+  acl_get_hash_filename(&conf_acl_hash_filename);
   config_get_string("acl_temp_file", &conf_acl_temp_filename, "/config/acltemp.csv");
-  config_get_string("acl_hash_file", &conf_acl_hash_filename, "/config/aclhash.txt");
 
   config_get_string("api_user", &conf_api_user, "username");
   config_get_string("api_password", &conf_api_password, "password");
 
-  // Load the stored ACL hash from a file
   xSemaphoreTake(g_acl_mutex, portMAX_DELAY);
-  int fd = open(conf_acl_hash_filename, O_RDONLY);
-  if (fd < 0) {
-      ESP_LOGI(TAG, "can't open ACL hash file for read, may not exist yet.");
-      strncpy(hash_expected, "none", sha224_len);
-  } else {
-    int r = read(fd, hash_expected, sha224_len);
-    if (r < 0) {
-      ESP_LOGE(TAG, "error reading ACL hash file");
-      strncpy(hash_expected, "none", sha224_len);
-    }
-    close(fd);
-
-    // null fence for safety
-    hash_expected[sha224_len - 1] = '\0';
-    ESP_LOGI(TAG, "Stored ACL hash is %s", hash_expected);
-  }
+  acl_get_stored_hash__acl_mutex(conf_acl_hash_filename, hash_expected);
   xSemaphoreGive(g_acl_mutex);
-
 
   // Build the HTTP(s) request
   http_get_req_t req = {
@@ -196,6 +173,16 @@ esp_err_t net_https_download_acl()
       }
 
       ESP_LOGD(TAG, "Moved temporary ACL file %s -> %s.", conf_acl_temp_filename, conf_acl_filename);
+
+      // delete temp ACL file if it exists
+      if (stat(conf_acl_temp_filename, &st) == 0) {
+        if (unlink(conf_acl_temp_filename) != 0) {
+          ESP_LOGE(TAG, "Could not delete temp ACL file %s", conf_acl_temp_filename);
+          xSemaphoreGive(g_acl_mutex);
+          goto failed;
+        }
+      }
+
 
       // save the hash of the ACL to a separate file
       int fd = open(conf_acl_hash_filename, O_WRONLY|O_CREAT|O_TRUNC);

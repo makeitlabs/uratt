@@ -50,6 +50,5 @@ void rfid_init();
 void rfid_task(void *pvParameters);
 BaseType_t rfid_get_member_record(member_record_t* member);
 
-extern SemaphoreHandle_t g_acl_mutex;
 
 #endif
