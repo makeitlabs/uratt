@@ -82,6 +82,9 @@ typedef struct display_evt {
         uint8_t allowed;
         uint8_t countdown;
     } params;
+    union {
+        int progress;
+    } extparams;
 } display_evt_t;
 
 static lv_obj_t *s_scr = NULL;
@@ -114,12 +117,13 @@ BaseType_t display_wifi_rssi(int16_t rssi)
 { return -1; }
 #endif
 
-BaseType_t display_acl_status(acl_status_t status)
+BaseType_t display_acl_status(acl_status_t status, int progress)
 #ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.cmd = DISP_CMD_ACL_STATUS;
     evt.params.acl_status = status;
+    evt.extparams.progress = progress;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 #else
@@ -237,6 +241,8 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_ACL_STATUS:
                 ui_idle_set_acl_status(evt.params.acl_status);
+                if (evt.params.acl_status == ACL_STATUS_DOWNLOADING)
+                  ui_idle_set_acl_download_progress(evt.extparams.progress);
                 break;
             case DISP_CMD_MQTT_STATUS:
                 ui_idle_set_mqtt_status(evt.params.mqtt_status);
@@ -281,7 +287,7 @@ void display_task(void *pvParameters)
             setenv("TZ", "EST5EDT,M3.2.0/2,M11.1.0", 1);
             tzset();
             localtime_r(&tnow, &timeinfo);
-            strftime(strftime_buf, sizeof(strftime_buf), "%l:%M%P", &timeinfo);
+            strftime(strftime_buf, sizeof(strftime_buf), "%l:%M", &timeinfo);
 
             ui_idle_set_time(strftime_buf);
 

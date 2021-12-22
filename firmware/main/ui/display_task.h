@@ -68,11 +68,10 @@ typedef enum {
     ACL_STATUS_DOWNLOADED_SAME_HASH,
     ACL_STATUS_CACHED,
     ACL_STATUS_DOWNLOADING,
-    ACL_STATUS_DOWNLOAD_PROGRESS,
     ACL_STATUS_MAX
 } acl_status_t;
 
-BaseType_t display_acl_status(acl_status_t status);
+BaseType_t display_acl_status(acl_status_t status, int progress);
 
 typedef enum {
   MQTT_STATUS_INIT,

@@ -40,7 +40,8 @@ static lv_obj_t *label_mqtt = NULL;
 static lv_obj_t *label_battery = NULL;
 
 static lv_obj_t *label_time = NULL;
-
+static lv_obj_t *bar_progress = NULL;
+static lv_obj_t *label_progress = NULL;
 
 static lv_timer_t *timer;
 
@@ -56,7 +57,7 @@ static void anim_timer_cb(lv_timer_t *timer)
     int mqtt_blink = timer_ctx->mqtt_blink;
     //lv_obj_t *scr = timer_ctx->scr;
 
-    if (acl_status == ACL_STATUS_DOWNLOADING || acl_status == ACL_STATUS_DOWNLOAD_PROGRESS) {
+    if (acl_status == ACL_STATUS_DOWNLOADING) {
         lv_obj_set_style_opa(label_acl_status, (count * 12) + 64, 0);
     } else {
         lv_obj_set_style_opa(label_acl_status, 255, 0);
@@ -108,31 +109,43 @@ void ui_idle_set_acl_status(acl_status_t status)
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREY), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_CLOSE);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
+            lv_obj_set_style_opa(bar_progress, 0, 0);
+            lv_obj_set_style_opa(label_time, 255, 0);
             break;
         case ACL_STATUS_ERROR:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_RED), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_WARNING);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
+            lv_obj_set_style_opa(bar_progress, 0, 0);
+            lv_obj_set_style_opa(label_time, 255, 0);
             break;
         case ACL_STATUS_DOWNLOADING:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_CYAN), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_DOWNLOAD);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(90,90,90), 0);
+            lv_obj_set_style_opa(bar_progress, 255, 0);
+            lv_obj_set_style_opa(label_time, 0, 0);
             break;
         case ACL_STATUS_DOWNLOADED_UPDATED:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            lv_obj_set_style_opa(bar_progress, 0, 0);
+            lv_obj_set_style_opa(label_time, 255, 0);
             break;
         case ACL_STATUS_DOWNLOADED_SAME_HASH:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            lv_obj_set_style_opa(bar_progress, 0, 0);
+            lv_obj_set_style_opa(label_time, 255, 0);
             break;
         case ACL_STATUS_CACHED:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_AMBER), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_FILE);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
+            lv_obj_set_style_opa(bar_progress, 0, 0);
+            lv_obj_set_style_opa(label_time, 255, 0);
             break;
         default:
         break;
@@ -226,6 +239,11 @@ void ui_idle_set_time(char *time_str)
     }
 }
 
+void ui_idle_set_acl_download_progress(int percent)
+{
+  lv_label_set_text_fmt(label_progress, "%d%%", percent);
+  lv_bar_set_value(bar_progress, percent, LV_ANIM_ON);
+}
 
 lv_obj_t* make_grid_icon(lv_obj_t* grid, int row, int col, lv_style_t* style, char* symbol )
 {
@@ -241,7 +259,6 @@ lv_obj_t* make_grid_icon(lv_obj_t* grid, int row, int col, lv_style_t* style, ch
     lv_obj_center(o);
     return o;
 }
-
 
 lv_obj_t* ui_idle_create(void)
 {
@@ -318,19 +335,53 @@ lv_obj_t* ui_idle_create(void)
     label_mqtt = make_grid_icon(grid, 1, 2, &gstyle, LV_SYMBOL_SHUFFLE);
     label_battery = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
 
-
-
     label_time = lv_label_create(grid);
+    lv_obj_set_grid_cell(label_time, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
     lv_label_set_long_mode(label_time, LV_LABEL_LONG_CLIP);
-    lv_obj_align(label_time, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_grid_cell(label_time, LV_GRID_ALIGN_STRETCH, 0, 4, LV_GRID_ALIGN_STRETCH, 0, 1);
     lv_obj_set_style_text_font(label_time, &lv_font_montserrat_36, 0);
-    lv_label_set_text_static(label_time, "12:00pm");
+    lv_label_set_text_static(label_time, "12:00");
     lv_obj_set_style_text_color(label_time, lv_color_white(), 0);
+    lv_obj_center(label_time);
+
+    static lv_style_t style_bg;
+    static lv_style_t style_indic;
+
+    lv_style_init(&style_bg);
+    lv_style_set_border_color(&style_bg, lv_palette_main(LV_PALETTE_BLUE));
+    lv_style_set_border_width(&style_bg, 2);
+    lv_style_set_pad_all(&style_bg, 2);
+    lv_style_set_radius(&style_bg, 0);
+    lv_style_set_anim_time(&style_bg, 1000);
+
+    lv_style_init(&style_indic);
+    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
+    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
+    lv_style_set_radius(&style_indic, 0);
+
+    bar_progress = lv_bar_create(grid);
+
+    lv_bar_set_start_value(bar_progress, 100, LV_ANIM_OFF);
+    lv_bar_set_range(bar_progress, 0, 100);
+    lv_bar_set_mode(bar_progress, LV_BAR_MODE_NORMAL);
+    lv_obj_remove_style_all(bar_progress);
+    lv_obj_add_style(bar_progress, &style_bg, 0);
+    lv_obj_add_style(bar_progress, &style_indic, LV_PART_INDICATOR);
+    lv_obj_set_style_opa(bar_progress, 0, 0);
+
+    lv_obj_center(bar_progress);
+    lv_obj_set_size(bar_progress, 140, 20);
+    lv_obj_set_grid_cell(bar_progress, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
+
+    label_progress = lv_label_create(bar_progress);
+    lv_label_set_long_mode(label_progress, LV_LABEL_LONG_CLIP);
+    lv_obj_align(label_progress, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(label_progress, &lv_font_montserrat_14, 0);
+    lv_label_set_text_static(label_progress, "");
+    lv_obj_set_style_text_color(label_progress, lv_color_white(), 0);
+
 
     my_tim_ctx.scr = scr;
     timer = lv_timer_create(anim_timer_cb, 100, &my_tim_ctx);
-
 
     return scr;
 }

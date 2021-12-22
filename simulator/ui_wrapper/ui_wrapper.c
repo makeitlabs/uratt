@@ -11,11 +11,32 @@ typedef struct {
     int status_count;
 } ui_timer_context_t;
 
+static ui_timer_context_t progress_ctx = {
+    .count_val = 0,
+    .status_count = 0,
+    .scr = 0
+};
+
 static lv_timer_t* ui_timer;
 static lv_obj_t* ui_splash;
 static lv_obj_t* ui_idle;
 static lv_obj_t* ui_access;
 static lv_obj_t* ui_sleep;
+
+void progress_cb(lv_timer_t * timer)
+{
+  ui_timer_context_t *timer_ctx = (ui_timer_context_t *) timer->user_data;
+  int count = timer_ctx->count_val;
+
+  ui_idle_set_acl_download_progress(count);
+
+  printf("progress %d\n", count);
+  count++;
+  if (count > 100)
+    lv_timer_del(timer);
+
+  timer_ctx->count_val = count;
+}
 
 void ui_timer_cb(lv_timer_t * timer)
 {
@@ -24,11 +45,12 @@ void ui_timer_cb(lv_timer_t * timer)
     int status_count = timer_ctx->status_count;
     //lv_obj_t *scr = timer_ctx->scr;
 
-
     if (count == 0) {
         lv_scr_load(ui_splash);
     } else if (count == 3) {
         lv_scr_load(ui_idle);
+        //short circuit
+        //count = 250 - 1;
     } else if (count == 5) {
         count = 100 - 1;
         status_count = 0;
@@ -47,9 +69,17 @@ void ui_timer_cb(lv_timer_t * timer)
         ui_idle_set_rssi(rssi);
         printf("tick %d: wifi rssi=%d\n", count, rssi);
         status_count++;
-    } else if (count > 205 && count < 300) {
+    } else if (count > 205 && count < 250) {
         status_count = 0;
-        count = 300 - 1;
+        count = 250 - 1;
+
+    } else if (count == 250) {
+        ui_idle_set_acl_status(ACL_STATUS_DOWNLOADING);
+        progress_ctx.count_val = 0;
+        lv_timer_create(progress_cb, 100, &progress_ctx);
+
+    } else if (count == 260) {
+      count = 300 - 1;
     } else if (count >= 300 && count < 400 && (count % 5) == 0) {
         if (status_count < ACL_STATUS_MAX) {
             ui_idle_set_acl_status(status_count);
