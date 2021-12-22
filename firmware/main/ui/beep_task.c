@@ -100,6 +100,8 @@ void bdelay(int ms)
 
 void beep_init(void)
 {
+  esp_log_level_set("ledc", ESP_LOG_NONE);
+  
   m_q = xQueueCreate(BEEP_QUEUE_DEPTH, sizeof(beep_evt_t));
   if (m_q == NULL) {
       ESP_LOGE(TAG, "FATAL: Cannot create beeper queue!");
