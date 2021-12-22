@@ -266,24 +266,7 @@ CONFIG_PARTITION_TABLE_MD5=y
 #
 # RATT Configuration
 #
-CONFIG_WIFI_SSID="myssid"
-CONFIG_WIFI_PASSWORD="mypassword"
-CONFIG_WEB_SERVER="192.168.0.1"
-CONFIG_WEB_PORT="443"
-CONFIG_WEB_URL_PATH="auth/api/v1/resources/resname/acl"
-CONFIG_WEB_BASIC_AUTH_USER="foo"
-CONFIG_WEB_BASIC_AUTH_PASS="bar"
 CONFIG_FIRMWARE_UPGRADE_URL="https://192.168.0.3:8070/hello-world.bin"
-
-#
-# Certificates
-#
-CONFIG_CA_CERT_FILENAME="/sdcard/certs/ca.crt"
-CONFIG_CLIENT_CERT_FILENAME="/sdcard/certs/client.crt"
-CONFIG_CLIENT_KEY_FILENAME="/sdcard/certs/client.key"
-CONFIG_CLIENT_PK_PASSPHRASE="secret"
-# CONFIG_SKIP_COMMON_NAME_CHECK is not set
-# end of Certificates
 # end of RATT Configuration
 
 #

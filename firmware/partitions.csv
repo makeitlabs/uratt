@@ -5,5 +5,5 @@ phy_init,   data,	phy,	   0xd000,	    4K
 factory,    app,	factory, 0x100000,    3M
 ota_0,      app,	ota_0,	 0x400000,    3M
 ota_1,	    app,	ota_1,	 0x700000,    3M
-storage,    data, fat,     0xA00000,    4M
+config,     data, fat,     0xA00000,    4M
 nvs,	      data,	nvs,     0xE00000,    256K
