@@ -47,14 +47,13 @@ static esp_err_t http_get_file_event_handler(esp_http_client_event_t *evt)
             content_length = 0;
             received_length = 0;
 
-            if (s_req->hash_buf) {
+            if (s_req->resp_hash_buf) {
               mbedtls_md_init(&s_md_ctx);
               if (mbedtls_md_setup(&s_md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA224), 0) != ESP_OK ||
                   mbedtls_md_starts(&s_md_ctx) != ESP_OK) {
                   ESP_LOGE(TAG, "error setting up mbedtls");
               }
             }
-
             break;
         case HTTP_EVENT_HEADER_SENT:
             ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
@@ -64,17 +63,38 @@ static esp_err_t http_get_file_event_handler(esp_http_client_event_t *evt)
 
             if (strcmp(evt->header_key, "Content-Length")==0) {
               content_length = atoi(evt->header_value);
+            } else if (strcmp(evt->header_key, "X-Hash-SHA224")==0) {
+
+              if (s_req->hash_expected && strcmp(evt->header_value, s_req->hash_expected)==0) {
+                if (s_req->hash_expected_cancel) {
+                  ESP_LOGW(TAG, "X-Hash-SHA224 matches expected hash %s, not downloading.", s_req->hash_expected);
+
+                  // set a short timeout so it closes immediately
+                  esp_http_client_set_timeout_ms(evt->client, 10);
+                  esp_http_client_close(evt->client);
+                  s_req->resp_hash_expected_match = true;
+
+                  if (s_req->resp_hash_buf) {
+                    strncpy(s_req->resp_hash_buf, evt->header_value, (224/8));
+                  }
+
+                  if (s_req->progress_cb) {
+                    s_req->progress_cb(1, 1); // 100%
+                  }
+                }
+              }
             }
             break;
         case HTTP_EVENT_ON_DATA:
             if (!esp_http_client_is_chunked_response(evt->client)) {
+                ESP_LOGD(TAG, "Receive %d bytes", evt->data_len);
                 received_length += evt->data_len;
 
                 if (s_req->progress_cb) {
                   s_req->progress_cb(received_length, content_length);
                 }
 
-                if (s_req->hash_buf) {
+                if (s_req->resp_hash_buf) {
                   if (mbedtls_md_update(&s_md_ctx, evt->data, evt->data_len) != ESP_OK) {
                     ESP_LOGE(TAG, "error computing sha224 on %d bytes of data", evt->data_len);
                   }
@@ -89,13 +109,15 @@ static esp_err_t http_get_file_event_handler(esp_http_client_event_t *evt)
             break;
         case HTTP_EVENT_ON_FINISH:
             ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-            if (s_req->hash_buf) {
+            if (s_req->resp_hash_buf) {
               uint8_t hbuf[32];
               mbedtls_md_finish(&s_md_ctx, hbuf);
               mbedtls_md_free(&s_md_ctx);
 
-              for (uint8_t idx=0; idx<(224/8); idx++) {
-                sprintf(s_req->hash_buf + (idx * 2), "%2.2x", hbuf[idx]);
+              if (!s_req->resp_hash_expected_match) {
+                for (uint8_t idx=0; idx<(224/8); idx++) {
+                  sprintf(s_req->resp_hash_buf + (idx * 2), "%2.2x", hbuf[idx]);
+                }
               }
 
             }
@@ -151,12 +173,13 @@ esp_err_t http_get(http_get_req_t* req)
   esp_err_t err = esp_http_client_perform(client);
 
   if (err == ESP_OK) {
-    req->status = esp_http_client_get_status_code(client);
-    req->content_length = esp_http_client_get_content_length(client);
+    req->resp_status = esp_http_client_get_status_code(client);
+    req->resp_content_length = esp_http_client_get_content_length(client);
 
-    ESP_LOGD(TAG, "Status = %d, content_length = %u", req->status, req->content_length);
-    if (req->hash_buf)
-      ESP_LOGI(TAG, "Calculated SHA224 hash %s", req->hash_buf);
+    ESP_LOGD(TAG, "Status = %d, content_length = %u", req->resp_status, req->resp_content_length);
+    if (!req->resp_hash_expected_match && req->resp_hash_buf) {
+      ESP_LOGI(TAG, "Calculated SHA224 hash %s", req->resp_hash_buf);
+    }
 
   }
   esp_http_client_cleanup(client);

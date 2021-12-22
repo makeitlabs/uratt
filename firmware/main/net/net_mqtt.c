@@ -47,7 +47,6 @@
 #include "esp_system.h"
 #include "config.h"
 #include "https.h"
-#include "sdcard.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"

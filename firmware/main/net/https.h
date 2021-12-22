@@ -18,9 +18,13 @@ typedef struct {
   char *data_buf;
   size_t data_buf_len;
 
-  int status;
-  size_t content_length;
-  char *hash_buf;         // MUST be at least 57 bytes; if NULL no hash will be returned
+  char *hash_expected;    // set hash_buf to NULL and set this to the expected hash; won't download if matches the X-Hash-SHA224 header value
+  bool hash_expected_cancel;
+
+  int resp_status;
+  size_t resp_content_length;
+  char *resp_hash_buf;         // MUST be at least 57 bytes; if NULL no hash will be returned
+  bool resp_hash_expected_match;
 } http_get_req_t;
 
 esp_err_t http_get(http_get_req_t* req);
