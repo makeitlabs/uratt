@@ -75,6 +75,7 @@
 #include "net_mqtt.h"
 #include "net_sntp.h"
 #include "net_ota.h"
+#include "main_task.h"
 
 static const char *TAG = "net_task";
 
@@ -98,6 +99,7 @@ typedef struct net_evt {
   union {
       char* buf2;
       uint8_t allowed;
+      power_status_t power_status;
   } params;
 } net_evt_t;
 
@@ -298,6 +300,9 @@ esp_err_t net_connect(void)
             ESP_LOGI(TAG, "- IPv4 address: " IPSTR, IP2STR(&ip.ip));
         }
     }
+
+    main_task_event(MAIN_EVT_NET_CONNECT);
+
     return ESP_OK;
 }
 
@@ -310,6 +315,9 @@ esp_err_t net_disconnect(void)
     s_semph_get_ip_addrs = NULL;
     net_stop();
     ESP_ERROR_CHECK(esp_unregister_shutdown_handler(&net_stop));
+
+    main_task_event(MAIN_EVT_NET_DISCONNECT);
+
     return ESP_OK;
 }
 
@@ -321,6 +329,16 @@ esp_err_t net_cmd_queue(int cmd)
     evt.params.buf2 = NULL;
     return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
 }
+
+esp_err_t net_cmd_queue_power_status(power_status_t status)
+{
+    net_evt_t evt;
+    evt.cmd = NET_CMD_SEND_POWER_STATUS;
+    evt.params.power_status = status;
+    return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
+    return ESP_ERR_NO_MEM;
+}
+
 
 esp_err_t net_cmd_queue_access(char *member, int allowed)
 {
@@ -465,6 +483,10 @@ void net_task(void *pvParameters)
             net_mqtt_send_access_error(evt.buf1, evt.params.buf2);
             free(evt.buf1);
             free(evt.params.buf2);
+            break;
+
+          case NET_CMD_SEND_POWER_STATUS:
+            net_mqtt_send_power_status(evt.params.power_status);
             break;
 
           case NET_CMD_OTA_UPDATE:

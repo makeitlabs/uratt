@@ -185,6 +185,44 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 }
 
 
+void net_mqtt_send_power_status(power_status_t status)
+{
+  char *topic, *payload;
+  topic = malloc(128);
+  payload = malloc(128);
+
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "system/power", topic, 128);
+
+  switch (status) {
+    case POWER_STATUS_ON_EXT:
+      snprintf(payload, 128, "{\"state\": \"on_external\"}");
+      break;
+    case POWER_STATUS_ON_BATT:
+      snprintf(payload, 128, "{\"state\": \"on_battery\"}");
+      break;
+    case POWER_STATUS_ON_BATT_LOW:
+      snprintf(payload, 128, "{\"state\": \"on_battery_low\"}");
+      break;
+    case POWER_STATUS_SLEEP:
+      snprintf(payload, 128, "{\"state\": \"sleep\"}");
+      break;
+    default:
+      snprintf(payload, 128, "{\"state\": \"unknown\"}");
+      break;
+  }
+
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
+    ESP_LOGD(TAG, "published system power status");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
+
+  free(topic);
+  free(payload);
+}
+
+
 static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
     esp_mqtt_client_handle_t client = event->client;

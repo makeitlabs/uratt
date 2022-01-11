@@ -37,6 +37,8 @@
 #ifndef _NET_TASK_H
 #define _NET_TASK_H
 
+#include "display_task.h"
+
 void net_init(void);
 void net_task(void *pvParameters);
 
@@ -47,18 +49,22 @@ esp_err_t net_cmd_queue(int cmd);
 esp_err_t net_cmd_queue_access(char *member, int allowed);
 esp_err_t net_cmd_queue_access_error(char *err, char *err_ext);
 esp_err_t net_cmd_queue_wget(char *url, char *filename);
+esp_err_t net_cmd_queue_power_status(power_status_t status);
 
-#define NET_CMD_INIT 0
-#define NET_CMD_DISCONNECT 1
-#define NET_CMD_CONNECT 2
-#define NET_CMD_DOWNLOAD_ACL  3
-#define NET_CMD_SEND_ACL_UPDATED 4
-#define NET_CMD_SEND_ACL_FAILED 5
-#define NET_CMD_SEND_WIFI_STR 6
-#define NET_CMD_SEND_ACCESS 7
-#define NET_CMD_SEND_ACCESS_ERROR 8
-#define NET_CMD_OTA_UPDATE 9
-#define NET_CMD_WGET 10
+typedef enum  {
+    NET_CMD_INIT = 0,
+    NET_CMD_DISCONNECT,
+    NET_CMD_CONNECT,
+    NET_CMD_DOWNLOAD_ACL,
+    NET_CMD_SEND_ACL_UPDATED,
+    NET_CMD_SEND_ACL_FAILED,
+    NET_CMD_SEND_WIFI_STR,
+    NET_CMD_SEND_ACCESS,
+    NET_CMD_SEND_ACCESS_ERROR,
+    NET_CMD_SEND_POWER_STATUS,
+    NET_CMD_OTA_UPDATE,
+    NET_CMD_WGET
+} net_cmd_t;
 
 extern uint8_t g_mac_addr[6];
 

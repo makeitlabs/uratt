@@ -10,6 +10,7 @@ void net_mqtt_send_wifi_strength(void);
 void net_mqtt_send_acl_updated(char* status);
 void net_mqtt_send_access(char *member, int allowed);
 void net_mqtt_send_access_error(char *err_text, char *err_ext);
+void net_mqtt_send_power_status(power_status_t status);
 
 
 #define MQTT_BASE_TOPIC "ratt"
