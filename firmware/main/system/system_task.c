@@ -150,6 +150,8 @@ void system_task(void *pvParameters)
   uint last_pwr_loss = 1;
   uint last_low_batt = 1;
 
+  time_t last_pwr_loss_change_time = 0;
+
   while(1) {
     system_evt_t evt;
 
@@ -159,15 +161,22 @@ void system_task(void *pvParameters)
 
     uint pwr_loss = gpio_get_level(GPIO_PIN_N_PWR_LOSS);
     if (pwr_loss != last_pwr_loss) {
-      if (pwr_loss == 0) {
-        main_task_event(MAIN_EVT_POWER_LOSS);
-        ESP_LOGW(TAG, "power lost!");
-      } else {
-        main_task_event(MAIN_EVT_POWER_RESTORED);
-        ESP_LOGI(TAG, "power restored!");
-      }
+      time_t now;
+      time(&now);
 
-      last_pwr_loss = pwr_loss;
+      if (now - last_pwr_loss_change_time >= 2) {
+        // only allow power state to change every 2 seconds, essentially a debounce
+        if (pwr_loss == 0) {
+          main_task_event(MAIN_EVT_POWER_LOSS);
+          ESP_LOGW(TAG, "power lost!");
+        } else {
+          main_task_event(MAIN_EVT_POWER_RESTORED);
+          ESP_LOGI(TAG, "power restored!");
+        }
+        last_pwr_loss = pwr_loss;
+      }
+    } else {
+      time(&last_pwr_loss_change_time);
     }
 
     uint low_batt = gpio_get_level(GPIO_PIN_LOW_BAT);
