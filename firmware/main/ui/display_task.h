@@ -49,17 +49,23 @@ void display_init();
 BaseType_t display_wifi_msg(char *msg);
 BaseType_t display_wifi_rssi(int16_t rssi);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
-BaseType_t display_sleep_countdown(uint8_t countdown);
 
 typedef enum {
     SCREEN_SPLASH,
     SCREEN_IDLE,
-    SCREEN_ACCESS,
-    SCREEN_SLEEP
+    SCREEN_ACCESS
 } screen_t;
 
-
 BaseType_t display_show_screen(screen_t screen);
+
+typedef enum {
+    POWER_STATUS_ON_EXT,
+    POWER_STATUS_ON_BATT,
+    POWER_STATUS_ON_BATT_LOW,
+    POWER_STATUS_SLEEP
+} power_status_t;
+
+BaseType_t display_power_status(power_status_t status);
 
 typedef enum {
     ACL_STATUS_INIT,

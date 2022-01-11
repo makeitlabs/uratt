@@ -50,7 +50,6 @@
 #include "ui_splash.h"
 #include "ui_idle.h"
 #include "ui_access.h"
-#include "ui_sleep.h"
 
 #ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
@@ -63,8 +62,7 @@ typedef enum {
     DISP_CMD_WIFI_RSSI,
     DISP_CMD_ACL_STATUS,
     DISP_CMD_MQTT_STATUS,
-    DISP_CMD_CHARGE_STATUS,
-    DISP_CMD_SLEEP_COUNTDOWN,
+    DISP_CMD_POWER_STATUS,
     DISP_CMD_ALLOWED_MSG,
     DISP_CMD_SHOW_SCREEN,
 } display_cmd_t;
@@ -74,13 +72,13 @@ typedef struct display_evt {
     char buf[DISPLAY_EVT_BUF_SIZE];
     union {
         screen_t screen;
+        power_status_t power_status;
         acl_status_t acl_status;
         mqtt_status_t mqtt_status;
         wifi_status_t wifi_status;
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
-        uint8_t countdown;
     } params;
     union {
         int progress;
@@ -91,6 +89,7 @@ static lv_obj_t *s_scr = NULL;
 
 static QueueHandle_t m_q;
 #endif
+
 
 BaseType_t display_wifi_status(wifi_status_t status)
 #ifdef DISPLAY_ENABLED
@@ -117,6 +116,20 @@ BaseType_t display_wifi_rssi(int16_t rssi)
 { return -1; }
 #endif
 
+
+BaseType_t display_power_status(power_status_t status)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_POWER_STATUS;
+    evt.params.power_status = status;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
+
 BaseType_t display_acl_status(acl_status_t status, int progress)
 #ifdef DISPLAY_ENABLED
 {
@@ -137,18 +150,6 @@ BaseType_t display_mqtt_status(mqtt_status_t status)
     display_evt_t evt;
     evt.cmd = DISP_CMD_MQTT_STATUS;
     evt.params.mqtt_status = status;
-    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
-}
-#else
-{ return -1; }
-#endif
-
-BaseType_t display_sleep_countdown(uint8_t countdown)
-#ifdef DISPLAY_ENABLED
-{
-    display_evt_t evt;
-    evt.cmd = DISP_CMD_SLEEP_COUNTDOWN;
-    evt.params.countdown = countdown;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 #else
@@ -212,7 +213,6 @@ void display_task(void *pvParameters)
 
     lv_obj_t *scr_idle = ui_idle_create();
     lv_obj_t *scr_access = ui_access_create();
-    lv_obj_t *scr_sleep = ui_sleep_create();
 
     while(1) {
         display_evt_t evt;
@@ -247,10 +247,8 @@ void display_task(void *pvParameters)
             case DISP_CMD_MQTT_STATUS:
                 ui_idle_set_mqtt_status(evt.params.mqtt_status);
                 break;
-            case DISP_CMD_CHARGE_STATUS:
-                break;
-            case DISP_CMD_SLEEP_COUNTDOWN:
-                ui_sleep_set_countdown(evt.params.countdown);
+            case DISP_CMD_POWER_STATUS:
+                ui_idle_set_power_status(evt.params.power_status);
                 break;
             case DISP_CMD_ALLOWED_MSG:
                 ui_access_set_user(evt.buf, evt.params.allowed);
@@ -258,16 +256,17 @@ void display_task(void *pvParameters)
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {
                   case SCREEN_SPLASH:
-                    lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
+                    if (lv_scr_act() != scr_splash)
+                      lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
                     break;
                   case SCREEN_IDLE:
-                    lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 750, 0, false);
+                    if (lv_scr_act() != scr_idle)
+                      lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 750, 0, false);
                     break;
                   case SCREEN_ACCESS:
-                    lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
+                    if (lv_scr_act() != scr_access)
+                      lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
                     break;
-                  case SCREEN_SLEEP:
-                    lv_scr_load_anim(scr_sleep, LV_SCR_LOAD_ANIM_FADE_ON, 2000, 0, false);
                 }
                 break;
             }
