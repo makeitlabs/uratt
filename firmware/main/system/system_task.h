@@ -40,4 +40,7 @@
 void system_task(void *pvParameters);
 void system_init();
 
+void system_sleep();
+void system_wake();
+
 #endif

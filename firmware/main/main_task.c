@@ -67,9 +67,12 @@ typedef enum {
   STATE_RFID_INVALID,
   STATE_UNLOCKED,
   STATE_LOCK,
-  STATE_POWER_LOST,
-  STATE_SLEEP_READY,
-  STATE_SLEEPING
+  STATE_GO_TO_SLEEP,
+  STATE_PRE_SLEEP1,
+  STATE_PRE_SLEEP2,
+  STATE_SLEEPING,
+  STATE_WAKE_UP,
+  STATE_WAKING
 } main_state_t;
 
 static const char* state_names[] =
@@ -83,9 +86,12 @@ static const char* state_names[] =
     "STATE_RFID_INVALID",
     "STATE_UNLOCKED",
     "STATE_LOCK",
-    "STATE_POWER_LOST",
-    "STATE_SLEEP_READY",
+    "STATE_GO_TO_SLEEP",
+    "STATE_PRE_SLEEP1",
+    "STATE_PRE_SLEEP2",
     "STATE_SLEEPING",
+    "STATE_WAKE_UP",
+    "STATE_WAKING",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
@@ -133,7 +139,7 @@ void main_task(void *pvParameters)
   TimerHandle_t timer = xTimerCreate("smtimer", 1000, pdFALSE, (void*)0,  main_task_timer_cb);
 
   bool power_ok = true;
-  bool sleeping = false;
+  bool net_connected = false;
 
   ESP_LOGI(TAG, "task start, TICK_RATE_HZ=%u", configTICK_RATE_HZ);
   while(1) {
@@ -145,19 +151,21 @@ void main_task(void *pvParameters)
       switch(evt.id) {
         case MAIN_EVT_POWER_LOSS:
           ESP_LOGE(TAG, "MAIN_EVT_POWER_LOSS");
+          display_power_status(POWER_STATUS_ON_BATT);
+          net_cmd_queue_power_status(POWER_STATUS_ON_BATT);
           power_ok = false;
           break;
         case MAIN_EVT_POWER_RESTORED:
           ESP_LOGE(TAG, "MAIN_EVT_POWER_RESTORED");
+          display_power_status(POWER_STATUS_ON_EXT);
+          net_cmd_queue_power_status(POWER_STATUS_ON_EXT);
           power_ok = true;
           break;
-        case MAIN_EVT_SLEEPING:
-          ESP_LOGE(TAG, "MAIN_EVT_SLEEPING");
-          sleeping = true;
+        case MAIN_EVT_NET_CONNECT:
+          net_connected = true;
           break;
-        case MAIN_EVT_WAKING:
-          ESP_LOGE(TAG, "MAIN_EVT_WAKING");
-          sleeping = false;
+        case MAIN_EVT_NET_DISCONNECT:
+          net_connected = false;
           break;
         default:
           break;
@@ -198,30 +206,43 @@ void main_task(void *pvParameters)
       break;
 
     case STATE_WAIT_RFID:
-      if (!power_ok) {
-        xTimerChangePeriod(timer, 5000 / portTICK_PERIOD_MS, 0);
-        xTimerStart(timer, 0);
-
-        state = STATE_POWER_LOST;
+      if (power_ok) {
+        if (xTimerIsTimerActive(timer)) {
+          ESP_LOGW(TAG, "main power now ok");
+          xTimerStop(timer, 0);
+        }
       } else {
-        switch (evt.id) {
-          case MAIN_EVT_RFID_PRE_SCAN:
-            beep_queue(1864, 45, 1, 1);
-            beep_queue(1244, 45, 1, 1);
-            beep_queue(1108, 45, 1, 1);
-            beep_queue(0, 150, 1, 1);
-            break;
-          case MAIN_EVT_VALID_RFID_SCAN:
+        if (!xTimerIsTimerActive(timer)) {
+          ESP_LOGW(TAG, "main power lost, sleep in 15 seconds");
+          xTimerChangePeriod(timer, 15000 / portTICK_PERIOD_MS, 0);
+          xTimerStart(timer, 0);
+        }
+      }
+
+      switch (evt.id) {
+        case MAIN_EVT_RFID_PRE_SCAN:
+          beep_queue(1864, 45, 1, 1);
+          beep_queue(1244, 45, 1, 1);
+          beep_queue(1108, 45, 1, 1);
+          beep_queue(0, 150, 1, 1);
+          break;
+        case MAIN_EVT_VALID_RFID_SCAN:
+          if (power_ok) {
             display_show_screen(SCREEN_ACCESS);
             state = STATE_RFID_VALID;
-            break;
-          case MAIN_EVT_INVALID_RFID_SCAN:
+          }
+          break;
+        case MAIN_EVT_INVALID_RFID_SCAN:
+          if (power_ok) {
             display_show_screen(SCREEN_ACCESS);
             state = STATE_RFID_INVALID;
-            break;
-          default:
-            break;
-        }
+          }
+          break;
+
+        case MAIN_EVT_TIMER_EXPIRED:
+          state = STATE_GO_TO_SLEEP;
+        default:
+          break;
       }
       break;
 
@@ -237,7 +258,7 @@ void main_task(void *pvParameters)
           beep_queue(1174, 250, 5, 5);
           door_unlock();
 
-          xTimerChangePeriod(timer, 3000 / portTICK_PERIOD_MS, 0);
+          xTimerChangePeriod(timer, 7000 / portTICK_PERIOD_MS, 0);
           xTimerStart(timer, 0);
 
           state = STATE_UNLOCKED;
@@ -294,32 +315,49 @@ void main_task(void *pvParameters)
       state = STATE_WAIT_READ;
       break;
 
-    case STATE_POWER_LOST:
-      if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
-        if (power_ok) {
-          state = STATE_START_RFID_READ;
-        } else {
-          display_show_screen(SCREEN_SLEEP);
-          net_cmd_queue(NET_CMD_DISCONNECT);
+    case STATE_GO_TO_SLEEP:
+      display_power_status(POWER_STATUS_SLEEP);
+      net_cmd_queue_power_status(POWER_STATUS_SLEEP);
+      xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
+      xTimerStart(timer, 0);
+      state = STATE_PRE_SLEEP1;
+      break;
 
-          state = STATE_SLEEP_READY;
-        }
+    case STATE_PRE_SLEEP1:
+      if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
+        net_cmd_queue(NET_CMD_DISCONNECT);
+        xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
+        xTimerStart(timer, 0);
+        state = STATE_PRE_SLEEP2;
       }
       break;
 
-    case STATE_SLEEP_READY:
-      if (power_ok) {
-        display_show_screen(SCREEN_IDLE);
-        net_cmd_queue(NET_CMD_CONNECT);
-        state = STATE_START_RFID_READ;
-      } else if (sleeping) {
+    case STATE_PRE_SLEEP2:
+      if (evt.id == MAIN_EVT_TIMER_EXPIRED && !net_connected) {
         state = STATE_SLEEPING;
       }
       break;
 
     case STATE_SLEEPING:
-      if (!sleeping) {
-        state = STATE_SLEEP_READY;
+      system_sleep();
+      // zzzz...
+      state = STATE_WAKE_UP;
+      break;
+
+    case STATE_WAKE_UP:
+      system_wake();
+      net_cmd_queue(NET_CMD_CONNECT);
+      if (!power_ok) {
+        // likely woke up from button or timer
+        display_power_status(POWER_STATUS_ON_BATT);
+        net_cmd_queue_power_status(POWER_STATUS_ON_BATT);
+      }
+      state = STATE_WAKING;
+      break;
+
+    case STATE_WAKING:
+      if (net_connected) {
+        state = STATE_START_RFID_READ;
       }
       break;
 
