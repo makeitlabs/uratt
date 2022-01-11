@@ -30,24 +30,23 @@ static my_timer_context_t my_tim_ctx = {
     .mqtt_blink = 0
 };
 
-
 static lv_obj_t *img_wifi_signal = NULL;
 static lv_obj_t *img_acl_status = NULL;
 static lv_obj_t *label_acl_status = NULL;
 
 static lv_obj_t *label_wifi_status = NULL;
 static lv_obj_t *label_mqtt = NULL;
-static lv_obj_t *label_battery = NULL;
+static lv_obj_t *label_power_status = NULL;
 
 static lv_obj_t *label_time = NULL;
 static lv_obj_t *bar_progress = NULL;
 static lv_obj_t *label_progress = NULL;
-
 static lv_timer_t *timer;
 
 static acl_status_t acl_status = ACL_STATUS_INIT;
 static mqtt_status_t mqtt_status = MQTT_STATUS_INIT;
 static wifi_status_t wifi_status = WIFI_STATUS_INIT;
+static power_status_t power_status = POWER_STATUS_ON_EXT;
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
@@ -86,6 +85,14 @@ static void anim_timer_cb(lv_timer_t *timer)
         lv_obj_set_style_opa(label_wifi_status, 255, 0);
     }
 
+    if (power_status == POWER_STATUS_SLEEP) {
+      lv_obj_set_style_opa(label_power_status, (count % 2) == 0 ? 255 : 64, 0);
+    } else if (power_status == POWER_STATUS_ON_BATT_LOW) {
+      lv_obj_set_style_opa(label_power_status, (count < 7) ? 255 : 0, 0);
+    } else {
+      lv_obj_set_style_opa(label_power_status, 255, 0);
+    }
+
     if (count_dir) {
         count++;
         if (count >= 15)
@@ -101,6 +108,30 @@ static void anim_timer_cb(lv_timer_t *timer)
     timer_ctx->mqtt_blink = mqtt_blink;
 }
 
+void ui_idle_set_power_status(power_status_t status)
+{
+  lv_color_t color = lv_palette_main(LV_PALETTE_GREY);
+  switch(status) {
+      case POWER_STATUS_ON_EXT:
+          color = lv_color_white();
+          lv_label_set_text(label_power_status, LV_SYMBOL_CHARGE);
+          break;
+      case POWER_STATUS_ON_BATT:
+          color = lv_palette_main(LV_PALETTE_AMBER);
+          lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_FULL);
+          break;
+      case POWER_STATUS_ON_BATT_LOW:
+          color = lv_palette_main(LV_PALETTE_RED);
+          lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_EMPTY);
+          break;
+      case POWER_STATUS_SLEEP:
+          color = lv_palette_main(LV_PALETTE_CYAN);
+          lv_label_set_text(label_power_status, LV_SYMBOL_POWER);
+          break;
+    }
+    lv_obj_set_style_text_color(label_power_status, color, 0);
+    power_status = status;
+}
 
 void ui_idle_set_acl_status(acl_status_t status)
 {
@@ -333,7 +364,7 @@ lv_obj_t* ui_idle_create(void)
     lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREY), 0);
 
     label_mqtt = make_grid_icon(grid, 1, 2, &gstyle, LV_SYMBOL_SHUFFLE);
-    label_battery = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
+    label_power_status = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
 
     label_time = lv_label_create(grid);
     lv_obj_set_grid_cell(label_time, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
