@@ -61,6 +61,8 @@ static const char *TAG = "display";
 
 #define LVGL_TICK_PERIOD_MS    10
 
+static esp_lcd_panel_handle_t s_panel_handle = NULL;
+
 
 static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
@@ -183,5 +185,13 @@ lv_obj_t *display_lvgl_init_scr(void)
     lv_obj_t *scr = lv_disp_get_scr_act(disp);
     ESP_LOGI(TAG, "LVGL screen created.");
 
+    s_panel_handle = panel_handle;
+
     return scr;
+}
+
+void display_lvgl_disp_off(bool off)
+{
+  gpio_set_level(GPIO_PIN_LCD_BCKL, off ? ~GPIO_LCD_BCKL_LEVEL_ON : GPIO_LCD_BCKL_LEVEL_ON);
+  esp_lcd_panel_disp_off(s_panel_handle, off);
 }
