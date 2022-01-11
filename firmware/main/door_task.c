@@ -97,7 +97,7 @@ void door_actuate_lock(void)
 {
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 0);
-  door_delay(500);
+  door_delay(300);
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 1);
 
@@ -107,7 +107,7 @@ void door_actuate_unlock(void)
 {
   gpio_set_level(GPIO_PIN_MOTOR_O1, 0);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 1);
-  door_delay(500);
+  door_delay(300);
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 1);
 }
