@@ -153,11 +153,6 @@ static void on_got_ip(void *arg, esp_event_base_t event_base,
   memcpy(&s_ip_addr, &event->ip_info.ip, sizeof(s_ip_addr));
   xSemaphoreGive(s_semph_get_ip_addrs);
 
-  /*
-  char s[32];
-  snprintf(s, sizeof(s), IPSTR, IP2STR(&event->ip_info.ip));
-  display_wifi_msg(s);
-  */
   display_wifi_status(WIFI_STATUS_CONNECTED);
 
   net_cmd_queue(NET_CMD_INIT);
@@ -197,6 +192,8 @@ static void on_wifi_disconnect(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "Wi-Fi disconnected, trying to reconnect...");
 
     display_wifi_status(WIFI_STATUS_DISCONNECTED);
+
+    display_net_status(NET_STATUS_CUR_IP, "(no IP)");
 
     net_wifi_configure();
 
@@ -299,6 +296,16 @@ esp_err_t net_connect(void)
             ESP_ERROR_CHECK(esp_netif_get_ip_info(netif, &ip));
 
             ESP_LOGI(TAG, "- IPv4 address: " IPSTR, IP2STR(&ip.ip));
+
+
+
+            char s[32];
+
+            snprintf(s, sizeof(s), "%2x%2x%2x%2x%2x%2x", g_mac_addr[0],g_mac_addr[1],g_mac_addr[2],g_mac_addr[3],g_mac_addr[4],g_mac_addr[5]);
+            display_net_status(NET_STATUS_CUR_MAC, s);
+
+            snprintf(s, sizeof(s), IPSTR, IP2STR(&ip.ip));
+            display_net_status(NET_STATUS_CUR_IP, s);
         }
     }
 

@@ -53,7 +53,8 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
 typedef enum {
     SCREEN_SPLASH,
     SCREEN_IDLE,
-    SCREEN_ACCESS
+    SCREEN_ACCESS,
+    SCREEN_INFO
 } screen_t;
 
 BaseType_t display_show_screen(screen_t screen);
@@ -105,6 +106,12 @@ typedef enum {
 
 BaseType_t display_wifi_status(wifi_status_t status);
 
+typedef enum {
+  NET_STATUS_CUR_MAC,
+  NET_STATUS_CUR_IP
+} net_status_t;
+
+BaseType_t display_net_status(net_status_t status, char *buf);
 
 BaseType_t display_door_state(bool door_open);
 

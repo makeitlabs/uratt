@@ -73,7 +73,9 @@ typedef enum {
   STATE_PRE_SLEEP2,
   STATE_SLEEPING,
   STATE_WAKE_UP,
-  STATE_WAKING
+  STATE_WAKING,
+  STATE_SHOW_INFO,
+  STATE_SHOWING_INFO
 } main_state_t;
 
 static const char* state_names[] =
@@ -94,6 +96,8 @@ static const char* state_names[] =
     "STATE_SLEEPING",
     "STATE_WAKE_UP",
     "STATE_WAKING",
+    "STATE_SHOW_INFO",
+    "STATE_SHOWING_INFO",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
@@ -176,17 +180,20 @@ void main_task(void *pvParameters)
           display_door_state(true);
           beep_queue(2216, 75, 1, 1);
           beep_queue(0, 50, 1, 1);
-          beep_queue(2216, 75, 1, 1);
+          beep_queue(1108, 75, 1, 1);
           ESP_LOGI(TAG, "Door opened");
           break;
         case MAIN_EVT_ALARM_DOOR_CLOSED:
           door_open = false;
           net_cmd_queue_door_state(false);
           display_door_state(false);
-          beep_queue(2216, 75, 1, 1);
+          beep_queue(1108, 75, 1, 1);
           beep_queue(0, 50, 1, 1);
           beep_queue(2216, 75, 1, 1);
           ESP_LOGI(TAG, "Door closed");
+          break;
+        case MAIN_EVT_UI_BUTTON_PRESS:
+          beep_queue(2488, 75, 1, 1);
           break;
         default:
           break;
@@ -261,6 +268,12 @@ void main_task(void *pvParameters)
 
         case MAIN_EVT_TIMER_EXPIRED:
           state = STATE_GO_TO_SLEEP;
+          break;
+
+        case MAIN_EVT_UI_BUTTON_PRESS:
+          state = STATE_SHOW_INFO;
+          break;
+
         default:
           break;
       }
@@ -392,6 +405,22 @@ void main_task(void *pvParameters)
       if (net_connected) {
         state = STATE_START_RFID_READ;
       }
+      break;
+
+    case STATE_SHOW_INFO:
+      xTimerChangePeriod(timer, 10000 / portTICK_PERIOD_MS, 0);
+      xTimerStart(timer, 0);
+
+      display_show_screen(SCREEN_INFO);
+
+      state = STATE_SHOWING_INFO;
+      break;
+
+    case STATE_SHOWING_INFO:
+      if (evt.id == MAIN_EVT_TIMER_EXPIRED || evt.id == MAIN_EVT_UI_BUTTON_PRESS) {
+        state = STATE_START_RFID_READ;
+      }
+
       break;
 
     default:

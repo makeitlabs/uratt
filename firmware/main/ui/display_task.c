@@ -46,10 +46,12 @@
 #include "system.h"
 #include "display_lvgl.h"
 #include "lvgl.h"
+#include "main_task.h"
 #include "beep_task.h"
 #include "ui_splash.h"
 #include "ui_idle.h"
 #include "ui_access.h"
+#include "ui_info.h"
 
 #ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
@@ -60,6 +62,7 @@ static const char *TAG = "display_task";
 typedef enum {
     DISP_CMD_WIFI_STATUS = 0x00,
     DISP_CMD_WIFI_RSSI,
+    DISP_CMD_NET_STATUS,
     DISP_CMD_ACL_STATUS,
     DISP_CMD_MQTT_STATUS,
     DISP_CMD_POWER_STATUS,
@@ -77,6 +80,7 @@ typedef struct display_evt {
         acl_status_t acl_status;
         mqtt_status_t mqtt_status;
         wifi_status_t wifi_status;
+        net_status_t net_status;
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
@@ -105,6 +109,21 @@ BaseType_t display_wifi_status(wifi_status_t status)
 #else
 { return -1; }
 #endif
+
+BaseType_t display_net_status(net_status_t status, char* buf)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_NET_STATUS;
+    evt.params.net_status = status;
+    strncpy(evt.buf, buf, DISPLAY_EVT_BUF_SIZE);
+
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
 
 BaseType_t display_wifi_rssi(int16_t rssi)
 #ifdef DISPLAY_ENABLED
@@ -229,21 +248,21 @@ void display_task(void *pvParameters)
 
     lv_obj_t *scr_idle = ui_idle_create();
     lv_obj_t *scr_access = ui_access_create();
+    lv_obj_t *scr_info = ui_info_create();
 
     while(1) {
         display_evt_t evt;
 
-        // braindead button test
         button = gpio_get_level(GPIO_PIN_FP_BUTTON);
 
         if (button != last_button) {
-            ESP_LOGI(TAG, "Button now=%d", button);
-            if (button == 0)
-              beep_queue(2000, 75, 1, 1);
+            ESP_LOGD(TAG, "Button now=%d", button);
+            if (button == 0) {
+              main_task_event(MAIN_EVT_UI_BUTTON_PRESS);
+            }
         }
 
         last_button = button;
-        // end button test
 
         display_lvgl_periodic();
 
@@ -254,6 +273,9 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_WIFI_RSSI:
                 ui_idle_set_rssi(evt.params.rssi);
+                break;
+            case DISP_CMD_NET_STATUS:
+                ui_info_set_status(evt.params.net_status, evt.buf);
                 break;
             case DISP_CMD_ACL_STATUS:
                 ui_idle_set_acl_status(evt.params.acl_status);
@@ -285,6 +307,10 @@ void display_task(void *pvParameters)
                   case SCREEN_ACCESS:
                     if (lv_scr_act() != scr_access)
                       lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
+                    break;
+                  case SCREEN_INFO:
+                    if (lv_scr_act() != scr_info)
+                      lv_scr_load_anim(scr_info, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
                     break;
                 }
                 break;

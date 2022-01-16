@@ -51,7 +51,8 @@ typedef enum {
   MAIN_EVT_VALID_RFID_SCAN,
   MAIN_EVT_INVALID_RFID_SCAN,
   MAIN_EVT_ALARM_DOOR_OPEN,
-  MAIN_EVT_ALARM_DOOR_CLOSED
+  MAIN_EVT_ALARM_DOOR_CLOSED,
+  MAIN_EVT_UI_BUTTON_PRESS
 } main_evt_id_t;
 
 void main_task(void *pvParameters);
