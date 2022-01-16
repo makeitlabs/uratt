@@ -115,6 +115,8 @@ void sdelay(int ms)
 void system_sleep()
 {
   ESP_LOGI(TAG, "going to sleep");
+  fflush(stdout);
+  vTaskDelay(1000/portTICK_PERIOD_MS);
 
   gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
   display_lvgl_disp_off(true);
@@ -134,6 +136,8 @@ void system_sleep()
 void system_wake()
 {
   ESP_LOGI(TAG, "waking up");
+
+  ESP_LOGI(TAG, "wake up reason %d", esp_sleep_get_wakeup_cause());
 
   gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
 
