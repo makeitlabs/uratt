@@ -50,6 +50,7 @@ esp_err_t net_cmd_queue_access(char *member, int allowed);
 esp_err_t net_cmd_queue_access_error(char *err, char *err_ext);
 esp_err_t net_cmd_queue_wget(char *url, char *filename);
 esp_err_t net_cmd_queue_power_status(power_status_t status);
+esp_err_t net_cmd_queue_door_state(bool door_open);
 
 typedef enum  {
     NET_CMD_INIT = 0,
@@ -62,6 +63,7 @@ typedef enum  {
     NET_CMD_SEND_ACCESS,
     NET_CMD_SEND_ACCESS_ERROR,
     NET_CMD_SEND_POWER_STATUS,
+    NET_CMD_SEND_DOOR_STATE,
     NET_CMD_OTA_UPDATE,
     NET_CMD_WGET
 } net_cmd_t;

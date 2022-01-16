@@ -140,6 +140,7 @@ void main_task(void *pvParameters)
 
   bool power_ok = true;
   bool net_connected = false;
+  bool door_open = false;
 
   ESP_LOGI(TAG, "task start, TICK_RATE_HZ=%u", configTICK_RATE_HZ);
   while(1) {
@@ -166,6 +167,18 @@ void main_task(void *pvParameters)
           break;
         case MAIN_EVT_NET_DISCONNECT:
           net_connected = false;
+          break;
+        case MAIN_EVT_ALARM_DOOR_OPEN:
+          door_open = true;
+          net_cmd_queue_door_state(true);
+          display_door_state(true);
+          ESP_LOGI(TAG, "Door opened");
+          break;
+        case MAIN_EVT_ALARM_DOOR_CLOSED:
+          door_open = false;
+          net_cmd_queue_door_state(false);
+          display_door_state(false);
+          ESP_LOGI(TAG, "Door closed");
           break;
         default:
           break;
@@ -233,10 +246,9 @@ void main_task(void *pvParameters)
           }
           break;
         case MAIN_EVT_INVALID_RFID_SCAN:
-          if (power_ok) {
-            display_show_screen(SCREEN_ACCESS);
-            state = STATE_RFID_INVALID;
-          }
+          xTimerStop(timer, 0);
+          display_show_screen(SCREEN_ACCESS);
+          state = STATE_RFID_INVALID;
           break;
 
         case MAIN_EVT_TIMER_EXPIRED:

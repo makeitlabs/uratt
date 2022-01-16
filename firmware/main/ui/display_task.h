@@ -105,4 +105,6 @@ typedef enum {
 BaseType_t display_wifi_status(wifi_status_t status);
 
 
+BaseType_t display_door_state(bool door_open);
+
 #endif

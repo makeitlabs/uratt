@@ -100,6 +100,7 @@ typedef struct net_evt {
       char* buf2;
       uint8_t allowed;
       power_status_t power_status;
+      bool door_open;
   } params;
 } net_evt_t;
 
@@ -339,6 +340,15 @@ esp_err_t net_cmd_queue_power_status(power_status_t status)
     return ESP_ERR_NO_MEM;
 }
 
+esp_err_t net_cmd_queue_door_state(bool door_open)
+{
+    net_evt_t evt;
+    evt.cmd = NET_CMD_SEND_DOOR_STATE;
+    evt.params.door_open = door_open;
+    return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
+    return ESP_ERR_NO_MEM;
+}
+
 
 esp_err_t net_cmd_queue_access(char *member, int allowed)
 {
@@ -487,6 +497,10 @@ void net_task(void *pvParameters)
 
           case NET_CMD_SEND_POWER_STATUS:
             net_mqtt_send_power_status(evt.params.power_status);
+            break;
+
+          case NET_CMD_SEND_DOOR_STATE:
+            net_mqtt_send_door_state(evt.params.door_open);
             break;
 
           case NET_CMD_OTA_UPDATE:

@@ -11,7 +11,7 @@ void net_mqtt_send_acl_updated(char* status);
 void net_mqtt_send_access(char *member, int allowed);
 void net_mqtt_send_access_error(char *err_text, char *err_ext);
 void net_mqtt_send_power_status(power_status_t status);
-
+void net_mqtt_send_door_state(bool door_open);
 
 #define MQTT_BASE_TOPIC "ratt"
 #define MQTT_TOPIC_TYPE_STATUS "status"

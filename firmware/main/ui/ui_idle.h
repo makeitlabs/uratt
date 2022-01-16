@@ -12,6 +12,6 @@ void ui_idle_set_acl_status(acl_status_t status);
 void ui_idle_set_acl_download_progress(int percent);
 void ui_idle_set_mqtt_status(mqtt_status_t status);
 void ui_idle_set_wifi_status(wifi_status_t status);
-
+void ui_idle_set_door_state(bool open);
 
 #endif

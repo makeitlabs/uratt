@@ -38,7 +38,7 @@ static lv_obj_t *label_wifi_status = NULL;
 static lv_obj_t *label_mqtt = NULL;
 static lv_obj_t *label_power_status = NULL;
 
-static lv_obj_t *label_time = NULL;
+static lv_obj_t *label_status = NULL;
 static lv_obj_t *bar_progress = NULL;
 static lv_obj_t *label_progress = NULL;
 static lv_timer_t *timer;
@@ -47,6 +47,8 @@ static acl_status_t acl_status = ACL_STATUS_INIT;
 static mqtt_status_t mqtt_status = MQTT_STATUS_INIT;
 static wifi_status_t wifi_status = WIFI_STATUS_INIT;
 static power_status_t power_status = POWER_STATUS_ON_EXT;
+static bool door_open = false;
+static char time[12];
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
@@ -86,11 +88,17 @@ static void anim_timer_cb(lv_timer_t *timer)
     }
 
     if (power_status == POWER_STATUS_SLEEP) {
-      lv_obj_set_style_opa(label_power_status, (count % 2) == 0 ? 255 : 64, 0);
+      lv_obj_set_style_opa(label_power_status, (count % 4) == 0 ? 255 : 64, 0);
     } else if (power_status == POWER_STATUS_ON_BATT_LOW) {
       lv_obj_set_style_opa(label_power_status, (count < 7) ? 255 : 0, 0);
     } else {
       lv_obj_set_style_opa(label_power_status, 255, 0);
+    }
+
+    if (door_open) {
+        lv_label_set_text(label_status, "OPEN");
+    } else {
+        lv_label_set_text(label_status, time);
     }
 
     if (count_dir) {
@@ -141,42 +149,42 @@ void ui_idle_set_acl_status(acl_status_t status)
             lv_label_set_text(label_acl_status, LV_SYMBOL_CLOSE);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
-            lv_obj_set_style_opa(label_time, 255, 0);
+            lv_obj_set_style_opa(label_status, 255, 0);
             break;
         case ACL_STATUS_ERROR:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_RED), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_WARNING);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(60,60,60), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
-            lv_obj_set_style_opa(label_time, 255, 0);
+            lv_obj_set_style_opa(label_status, 255, 0);
             break;
         case ACL_STATUS_DOWNLOADING:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_CYAN), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_DOWNLOAD);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(90,90,90), 0);
             lv_obj_set_style_opa(bar_progress, 255, 0);
-            lv_obj_set_style_opa(label_time, 0, 0);
+            lv_obj_set_style_opa(label_status, 0, 0);
             break;
         case ACL_STATUS_DOWNLOADED_UPDATED:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_GREEN), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
-            lv_obj_set_style_opa(label_time, 255, 0);
+            lv_obj_set_style_opa(label_status, 255, 0);
             break;
         case ACL_STATUS_DOWNLOADED_SAME_HASH:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_AMBER), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_OK);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
-            lv_obj_set_style_opa(label_time, 255, 0);
+            lv_obj_set_style_opa(label_status, 255, 0);
             break;
         case ACL_STATUS_CACHED:
             lv_obj_set_style_text_color(label_acl_status, lv_palette_main(LV_PALETTE_AMBER), 0);
             lv_label_set_text(label_acl_status, LV_SYMBOL_FILE);
             lv_obj_set_style_img_recolor(img_acl_status, lv_color_make(0, 70, 130), 0);
             lv_obj_set_style_opa(bar_progress, 0, 0);
-            lv_obj_set_style_opa(label_time, 255, 0);
+            lv_obj_set_style_opa(label_status, 255, 0);
             break;
         default:
         break;
@@ -265,9 +273,12 @@ void ui_idle_set_rssi(int rssi)
 
 void ui_idle_set_time(char *time_str)
 {
-    if (label_time) {
-        lv_label_set_text(label_time, time_str);
-    }
+  strncpy(time, time_str, 12);
+}
+
+void ui_idle_set_door_state(bool open)
+{
+  door_open = open;
 }
 
 void ui_idle_set_acl_download_progress(int percent)
@@ -366,13 +377,13 @@ lv_obj_t* ui_idle_create(void)
     label_mqtt = make_grid_icon(grid, 1, 2, &gstyle, LV_SYMBOL_SHUFFLE);
     label_power_status = make_grid_icon(grid, 1, 3, &gstyle, LV_SYMBOL_CHARGE);
 
-    label_time = lv_label_create(grid);
-    lv_obj_set_grid_cell(label_time, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
-    lv_label_set_long_mode(label_time, LV_LABEL_LONG_CLIP);
-    lv_obj_set_style_text_font(label_time, &lv_font_montserrat_36, 0);
-    lv_label_set_text_static(label_time, "12:00");
-    lv_obj_set_style_text_color(label_time, lv_color_white(), 0);
-    lv_obj_center(label_time);
+    label_status = lv_label_create(grid);
+    lv_obj_set_grid_cell(label_status, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
+    lv_label_set_long_mode(label_status, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_text_font(label_status, &lv_font_montserrat_36, 0);
+    lv_label_set_text_static(label_status, "12:00");
+    lv_obj_set_style_text_color(label_status, lv_color_white(), 0);
+    lv_obj_center(label_status);
 
     static lv_style_t style_bg;
     static lv_style_t style_indic;

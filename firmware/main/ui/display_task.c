@@ -64,6 +64,7 @@ typedef enum {
     DISP_CMD_MQTT_STATUS,
     DISP_CMD_POWER_STATUS,
     DISP_CMD_ALLOWED_MSG,
+    DISP_CMD_DOOR_STATE,
     DISP_CMD_SHOW_SCREEN,
 } display_cmd_t;
 
@@ -79,6 +80,7 @@ typedef struct display_evt {
         uint8_t progress;
         int16_t rssi;
         uint8_t allowed;
+        bool door_open;
     } params;
     union {
         int progress;
@@ -170,6 +172,20 @@ BaseType_t display_allowed_msg(char *msg, uint8_t allowed)
 { return -1; }
 #endif
 
+
+BaseType_t display_door_state(bool door_open)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_DOOR_STATE;
+    evt.params.door_open = door_open;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
+
+
 BaseType_t display_show_screen(screen_t screen)
 #ifdef DISPLAY_ENABLED
 {
@@ -252,6 +268,9 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_ALLOWED_MSG:
                 ui_access_set_user(evt.buf, evt.params.allowed);
+                break;
+            case DISP_CMD_DOOR_STATE:
+                ui_idle_set_door_state(evt.params.door_open);
                 break;
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {

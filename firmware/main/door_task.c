@@ -46,6 +46,7 @@
 #include "driver/gpio.h"
 #include "system.h"
 
+#include "main_task.h"
 #include "door_task.h"
 
 static const char *TAG = "door_task";
@@ -85,6 +86,8 @@ void door_init(void)
 
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 1);
+
+  gpio_set_direction(GPIO_PIN_ALARM_SCL, GPIO_MODE_INPUT);
 }
 
 void door_delay(int ms)
@@ -97,7 +100,7 @@ void door_actuate_lock(void)
 {
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 0);
-  door_delay(300);
+  door_delay(400);
   gpio_set_level(GPIO_PIN_MOTOR_O1, 1);
   gpio_set_level(GPIO_PIN_MOTOR_O2, 1);
 
@@ -114,12 +117,24 @@ void door_actuate_unlock(void)
 
 void door_task(void *pvParameters)
 {
+    int alarm=0, last_alarm=-1;
+
     // initially lock after delay
     door_delay(2000);
     door_actuate_lock();
 
     while(1) {
         door_evt_t evt;
+
+        alarm = gpio_get_level(GPIO_PIN_ALARM_SCL);
+
+        if (alarm != last_alarm) {
+            ESP_LOGD(TAG, "Alarm now=%d", alarm);
+
+            main_task_event(alarm ? MAIN_EVT_ALARM_DOOR_OPEN : MAIN_EVT_ALARM_DOOR_CLOSED);
+        }
+
+        last_alarm = alarm;
 
         if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
           if (evt.unlock) {

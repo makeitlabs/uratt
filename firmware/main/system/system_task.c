@@ -116,14 +116,17 @@ void system_sleep()
 {
   ESP_LOGI(TAG, "going to sleep");
 
-  esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
-  gpio_wakeup_enable(13, GPIO_INTR_LOW_LEVEL);
-  gpio_wakeup_enable(35, GPIO_INTR_HIGH_LEVEL);
-  esp_sleep_enable_gpio_wakeup();
-
   gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
-
   display_lvgl_disp_off(true);
+
+  esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
+  gpio_wakeup_enable(GPIO_PIN_FP_BUTTON, GPIO_INTR_LOW_LEVEL);
+  gpio_wakeup_enable(GPIO_PIN_N_PWR_LOSS, GPIO_INTR_HIGH_LEVEL);
+
+  int alrm = gpio_get_level(GPIO_PIN_ALARM_SCL);
+  gpio_wakeup_enable(GPIO_PIN_ALARM_SCL, alrm ? GPIO_INTR_LOW_LEVEL : GPIO_INTR_HIGH_LEVEL);
+
+  esp_sleep_enable_gpio_wakeup();
 
   esp_light_sleep_start();
 }
@@ -164,8 +167,8 @@ void system_task(void *pvParameters)
       time_t now;
       time(&now);
 
-      if (now - last_pwr_loss_change_time >= 2) {
-        // only allow power state to change every 2 seconds, essentially a debounce
+      if (now - last_pwr_loss_change_time >= 1) {
+        // only allow power state to change every 1 second, essentially a debounce
         if (pwr_loss == 0) {
           main_task_event(MAIN_EVT_POWER_LOSS);
           ESP_LOGW(TAG, "power lost!");
