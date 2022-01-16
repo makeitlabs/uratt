@@ -66,6 +66,7 @@ typedef enum {
   STATE_RFID_VALID,
   STATE_RFID_INVALID,
   STATE_UNLOCKED,
+  STATE_UNLOCKED_OPEN,
   STATE_LOCK,
   STATE_GO_TO_SLEEP,
   STATE_PRE_SLEEP1,
@@ -85,6 +86,7 @@ static const char* state_names[] =
     "STATE_RFID_VALID",
     "STATE_RFID_INVALID",
     "STATE_UNLOCKED",
+    "STATE_UNLOCKED_OPEN",
     "STATE_LOCK",
     "STATE_GO_TO_SLEEP",
     "STATE_PRE_SLEEP1",
@@ -172,12 +174,18 @@ void main_task(void *pvParameters)
           door_open = true;
           net_cmd_queue_door_state(true);
           display_door_state(true);
+          beep_queue(2216, 75, 1, 1);
+          beep_queue(0, 50, 1, 1);
+          beep_queue(2216, 75, 1, 1);
           ESP_LOGI(TAG, "Door opened");
           break;
         case MAIN_EVT_ALARM_DOOR_CLOSED:
           door_open = false;
           net_cmd_queue_door_state(false);
           display_door_state(false);
+          beep_queue(2216, 75, 1, 1);
+          beep_queue(0, 50, 1, 1);
+          beep_queue(2216, 75, 1, 1);
           ESP_LOGI(TAG, "Door closed");
           break;
         default:
@@ -312,8 +320,19 @@ void main_task(void *pvParameters)
       break;
 
     case STATE_UNLOCKED:
-      if (evt.id == MAIN_EVT_TIMER_EXPIRED)
+      if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
         state = STATE_LOCK;
+      } else if (door_open) {
+        xTimerChangePeriod(timer, 1000 / portTICK_PERIOD_MS, 0);
+        xTimerStart(timer, 0);
+        state = STATE_UNLOCKED_OPEN;
+      }
+      break;
+
+    case STATE_UNLOCKED_OPEN:
+      if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
+        state = STATE_LOCK;
+      }
       break;
 
     case STATE_LOCK:
@@ -358,7 +377,9 @@ void main_task(void *pvParameters)
 
     case STATE_WAKE_UP:
       system_wake();
+
       net_cmd_queue(NET_CMD_CONNECT);
+      net_cmd_queue_power_status(POWER_STATUS_WAKE);
       if (!power_ok) {
         // likely woke up from button or timer
         display_power_status(POWER_STATUS_ON_BATT);

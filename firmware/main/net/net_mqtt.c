@@ -206,6 +206,9 @@ void net_mqtt_send_power_status(power_status_t status)
     case POWER_STATUS_SLEEP:
       snprintf(payload, 128, "{\"state\": \"sleep\"}");
       break;
+    case POWER_STATUS_WAKE:
+      snprintf(payload, 128, "{\"state\": \"wake\"}");
+      break;
     default:
       snprintf(payload, 128, "{\"state\": \"unknown\"}");
       break;
@@ -237,7 +240,7 @@ void net_mqtt_send_door_state(bool door_open)
   } else {
     snprintf(payload, 128, "{\"state\": \"closed\"}");
   }
-  
+
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
     display_mqtt_status(MQTT_STATUS_DATA_SENT);
     ESP_LOGD(TAG, "published personality door status");

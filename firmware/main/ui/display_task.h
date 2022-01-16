@@ -62,7 +62,8 @@ typedef enum {
     POWER_STATUS_ON_EXT,
     POWER_STATUS_ON_BATT,
     POWER_STATUS_ON_BATT_LOW,
-    POWER_STATUS_SLEEP
+    POWER_STATUS_SLEEP,
+    POWER_STATUS_WAKE
 } power_status_t;
 
 BaseType_t display_power_status(power_status_t status);

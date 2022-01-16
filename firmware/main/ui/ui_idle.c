@@ -66,7 +66,7 @@ static void anim_timer_cb(lv_timer_t *timer)
 
     if (mqtt_status == MQTT_STATUS_DATA_SENT || mqtt_status == MQTT_STATUS_DATA_RECEIVED) {
         if (mqtt_blink == 0) {
-            mqtt_blink = 16;
+            mqtt_blink = 4;
         } else {
             mqtt_blink--;
             if (mqtt_blink == 0) {
@@ -133,6 +133,7 @@ void ui_idle_set_power_status(power_status_t status)
           lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_EMPTY);
           break;
       case POWER_STATUS_SLEEP:
+      case POWER_STATUS_WAKE:
           color = lv_palette_main(LV_PALETTE_CYAN);
           lv_label_set_text(label_power_status, LV_SYMBOL_POWER);
           break;
