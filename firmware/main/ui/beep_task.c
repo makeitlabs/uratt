@@ -44,10 +44,25 @@
 #include "system.h"
 
 #include "driver/ledc.h"
+#include "beep_task.h"
 
 static const char *TAG = "beep_task";
 
 #define BEEP_QUEUE_DEPTH 16
+
+const beep_t _beep_door_open[] = { {2216, 75, 1, 1}, {0, 50, 1, 1}, {1108, 75, 1, 1}, {HZ_END, 0, 0, 0} };
+const beep_t _beep_door_closed[] = { {1108, 75, 1, 1}, {0, 50, 1, 1}, {2216, 75, 1, 1}, {HZ_END, 0, 0, 0} };
+const beep_t _beep_button_press[] = { {2488, 75, 1, 1}, {HZ_END, 0, 0, 0} };
+const beep_t _beep_init[] = { {1108, 35, 1, 1}, {1244, 35, 1, 1}, {1864, 35, 1, 1}, {HZ_END, 0, 0, 0} };
+
+const beep_t _beep_pre_scan[] = { {1864, 45, 1, 1}, {1244, 45, 1, 1}, {1108, 35, 1, 1}, {0, 150, 1, 1}, {HZ_END, 0, 0, 0} };
+
+const beep_t _beep_allowed[] = { {880, 250, 1, 1}, {1174, 250, 1, 1}, {HZ_END, 0, 0, 0} };
+const beep_t _beep_denied[] = { {220, 250, 5, 5}, {0, 100, 0, 0}, {220, 250, 5, 5}, {HZ_END, 0, 0, 0} };
+
+const beep_t _beep_invalid[] = { {3000, 250, 5, 5}, {0, 100, 0, 0}, {3000, 250, 5, 5}, {HZ_END, 0, 0, 0} };
+
+const beep_t _beep_lock[] = { {1174, 250, 5, 5}, {880, 250, 5, 5}, {HZ_END, 0, 0, 0} };
 
 
 #define LEDC_HS_TIMER          LEDC_TIMER_0
@@ -71,23 +86,17 @@ ledc_channel_config_t ledc_channel = {
     .timer_sel  = LEDC_HS_TIMER
 };
 
+
 typedef struct beep_evt {
-  int hz;
-  int msec;
-  int attack;
-  int decay;
+  const beep_t* beeps;
 } beep_evt_t;
 
 static QueueHandle_t m_q;
 
-BaseType_t beep_queue(int hz, int msec, int attack, int decay)
+BaseType_t beep_queue(const beep_t* beeps)
 {
     beep_evt_t evt;
-    evt.hz = hz;
-    evt.msec = msec;
-    evt.attack = attack;
-    evt.decay = decay;
-
+    evt.beeps = beeps;
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
 }
 
@@ -100,8 +109,8 @@ void bdelay(int ms)
 
 void beep_init(void)
 {
-  esp_log_level_set("ledc", ESP_LOG_NONE);
-  
+  esp_log_level_set("ledc", ESP_LOG_DEBUG);
+
   m_q = xQueueCreate(BEEP_QUEUE_DEPTH, sizeof(beep_evt_t));
   if (m_q == NULL) {
       ESP_LOGE(TAG, "FATAL: Cannot create beeper queue!");
@@ -156,11 +165,18 @@ void beep_task(void *pvParameters)
         beep_evt_t evt;
 
         if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
-            ESP_LOGD(TAG, "beep event hz=%d attack=%d msec=%d decay=%d\n", evt.hz, evt.attack, evt.msec, evt.decay);
-            beep_start(evt.hz, evt.attack);
-            beep_delay(evt.msec + evt.attack);
-            beep_stop(evt.decay);
-            beep_delay(evt.decay);
+            int bidx = 0;
+            const beep_t* b = &evt.beeps[bidx];
+            while (b->hz != HZ_END) {
+              ESP_LOGD(TAG, "beep event hz=%d attack=%d msec=%d decay=%d\n", b->hz, b->attack, b->msec, b->decay);
+
+              beep_start(b->hz, b->attack);
+              beep_delay(b->msec + b->attack);
+              beep_stop(b->decay);
+              beep_delay(b->decay);
+
+              b = &evt.beeps[++bidx];
+            }
         }
     }
 }

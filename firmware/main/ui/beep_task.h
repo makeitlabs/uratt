@@ -40,6 +40,25 @@
 void beep_task(void *pvParameters);
 void beep_init();
 
-BaseType_t beep_queue(int hz, int msec, int attack, int decay);
+#define HZ_END -1
+
+typedef struct beep {
+  int hz;
+  int msec;
+  int attack;
+  int decay;
+} beep_t;
+
+BaseType_t beep_queue(const beep_t* beeps);
+
+extern const beep_t _beep_door_open[];
+extern const beep_t _beep_door_closed[];
+extern const beep_t _beep_button_press[];
+extern const beep_t _beep_init[];
+extern const beep_t _beep_pre_scan[];
+extern const beep_t _beep_allowed[];
+extern const beep_t _beep_denied[];
+extern const beep_t _beep_invalid[];
+extern const beep_t _beep_lock[];
 
 #endif

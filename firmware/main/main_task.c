@@ -178,22 +178,18 @@ void main_task(void *pvParameters)
           door_open = true;
           net_cmd_queue_door_state(true);
           display_door_state(true);
-          beep_queue(2216, 75, 1, 1);
-          beep_queue(0, 50, 1, 1);
-          beep_queue(1108, 75, 1, 1);
+          beep_queue(_beep_door_open);
           ESP_LOGI(TAG, "Door opened");
           break;
         case MAIN_EVT_ALARM_DOOR_CLOSED:
           door_open = false;
           net_cmd_queue_door_state(false);
           display_door_state(false);
-          beep_queue(1108, 75, 1, 1);
-          beep_queue(0, 50, 1, 1);
-          beep_queue(2216, 75, 1, 1);
+          beep_queue(_beep_door_closed);
           ESP_LOGI(TAG, "Door closed");
           break;
         case MAIN_EVT_UI_BUTTON_PRESS:
-          beep_queue(2488, 75, 1, 1);
+          beep_queue(_beep_button_press);
           break;
         default:
           break;
@@ -208,9 +204,7 @@ void main_task(void *pvParameters)
     switch(state) {
     case STATE_INIT:
       display_show_screen(SCREEN_SPLASH);
-      beep_queue(1108, 35, 1, 1);
-      beep_queue(1244, 35, 1, 1);
-      beep_queue(1864, 35, 1, 1);
+      beep_queue(_beep_init);
 
       state = STATE_INITIAL_LOCK;
       break;
@@ -249,10 +243,7 @@ void main_task(void *pvParameters)
 
       switch (evt.id) {
         case MAIN_EVT_RFID_PRE_SCAN:
-          beep_queue(1864, 45, 1, 1);
-          beep_queue(1244, 45, 1, 1);
-          beep_queue(1108, 45, 1, 1);
-          beep_queue(0, 150, 1, 1);
+          beep_queue(_beep_pre_scan);
           break;
         case MAIN_EVT_VALID_RFID_SCAN:
           display_show_screen(SCREEN_ACCESS);
@@ -285,8 +276,7 @@ void main_task(void *pvParameters)
 
         if (active_member_record.allowed) {
           ESP_LOGI(TAG, "MEMBER ALLOWED");
-          beep_queue(880, 250, 5, 5);
-          beep_queue(1174, 250, 5, 5);
+          beep_queue(_beep_allowed);
           door_unlock();
 
           xTimerChangePeriod(timer, 7000 / portTICK_PERIOD_MS, 0);
@@ -295,9 +285,7 @@ void main_task(void *pvParameters)
           state = STATE_UNLOCKED;
         } else {
           ESP_LOGI(TAG, "MEMBER DENIED");
-          beep_queue(220, 250, 5, 5);
-          beep_queue(0, 100, 0, 0);
-          beep_queue(220, 250, 5, 5);
+          beep_queue(_beep_denied);
 
           xTimerChangePeriod(timer, 10000 / portTICK_PERIOD_MS, 0);
           xTimerStart(timer, 0);
@@ -315,9 +303,7 @@ void main_task(void *pvParameters)
 
         display_allowed_msg("Unknown RFID", false);
 
-        beep_queue(3000, 250, 5, 5);
-        beep_queue(0, 100, 0, 0);
-        beep_queue(3000, 250, 5, 5);
+        beep_queue(_beep_invalid);
 
         char tagstr[12];
         snprintf(tagstr, sizeof(tagstr), "%10.10u", active_member_record.tag);
@@ -347,8 +333,7 @@ void main_task(void *pvParameters)
       break;
 
     case STATE_LOCK:
-      beep_queue(1174, 250, 5, 5);
-      beep_queue(880, 250, 5, 5);
+      beep_queue(_beep_lock);
       door_lock();
 
       xTimerChangePeriod(timer, 10000 / portTICK_PERIOD_MS, 0);
