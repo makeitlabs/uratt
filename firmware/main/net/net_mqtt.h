@@ -6,6 +6,7 @@ int net_mqtt_init(void);
 int net_mqtt_start(void);
 int net_mqtt_stop(void);
 
+void net_mqtt_send_boot_status(void);
 void net_mqtt_send_wifi_strength(void);
 void net_mqtt_send_acl_updated(char* status);
 void net_mqtt_send_access(char *member, int allowed);

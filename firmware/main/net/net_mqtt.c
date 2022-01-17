@@ -184,6 +184,61 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
   free(payload);
 }
 
+void net_mqtt_send_boot_status(void)
+{
+  char *topic, *payload;
+  topic = malloc(128);
+  payload = malloc(128);
+
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "system/boot", topic, 128);
+
+  esp_reset_reason_t reason = esp_reset_reason();
+
+  switch (reason) {
+    case ESP_RST_POWERON:
+      snprintf(payload, 128, "{\"reset_reason\": \"power_on\"}");
+      break;
+    case ESP_RST_EXT:
+      snprintf(payload, 128, "{\"reset_reason\": \"ext\"}");
+      break;
+    case ESP_RST_SW:
+      snprintf(payload, 128, "{\"reset_reason\": \"sw\"}");
+      break;
+    case ESP_RST_PANIC:
+      snprintf(payload, 128, "{\"reset_reason\": \"panic\"}");
+      break;
+    case ESP_RST_INT_WDT:
+      snprintf(payload, 128, "{\"reset_reason\": \"int_wdt\"}");
+      break;
+    case ESP_RST_TASK_WDT:
+      snprintf(payload, 128, "{\"reset_reason\": \"task_wdt\"}");
+      break;
+    case ESP_RST_DEEPSLEEP:
+      snprintf(payload, 128, "{\"reset_reason\": \"deep_sleep\"}");
+      break;
+    case ESP_RST_BROWNOUT:
+      snprintf(payload, 128, "{\"reset_reason\": \"brownout\"}");
+      break;
+    case ESP_RST_SDIO:
+      snprintf(payload, 128, "{\"reset_reason\": \"sdio\"}");
+      break;
+    case ESP_RST_UNKNOWN:
+    default:
+      snprintf(payload, 128, "{\"reset_reason\": \"unknown\"}");
+      break;
+  }
+
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
+    ESP_LOGD(TAG, "published system boot status");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
+
+  free(topic);
+  free(payload);
+}
+
 
 void net_mqtt_send_power_status(power_status_t status)
 {

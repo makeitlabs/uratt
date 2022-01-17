@@ -440,6 +440,8 @@ void net_init(void)
 
 void net_task(void *pvParameters)
 {
+    bool first_boot = true;
+
     ESP_LOGI(TAG, "start net task");
     net_init();
 
@@ -452,6 +454,10 @@ void net_task(void *pvParameters)
             net_sntp_init();
             net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
             net_mqtt_start();
+            if (first_boot) {
+              net_mqtt_send_boot_status();
+              first_boot = false;
+            }
             break;
 
           case NET_CMD_DISCONNECT:
@@ -466,7 +472,6 @@ void net_task(void *pvParameters)
 
           case NET_CMD_DOWNLOAD_ACL:
             {
-
               time_t start = esp_log_timestamp();
               esp_err_t r = net_https_download_acl();
               time_t elapsed = esp_log_timestamp() - start;
