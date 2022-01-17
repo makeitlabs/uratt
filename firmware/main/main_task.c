@@ -255,10 +255,8 @@ void main_task(void *pvParameters)
           beep_queue(0, 150, 1, 1);
           break;
         case MAIN_EVT_VALID_RFID_SCAN:
-          if (power_ok) {
-            display_show_screen(SCREEN_ACCESS);
-            state = STATE_RFID_VALID;
-          }
+          display_show_screen(SCREEN_ACCESS);
+          state = STATE_RFID_VALID;
           break;
         case MAIN_EVT_INVALID_RFID_SCAN:
           xTimerStop(timer, 0);
@@ -390,6 +388,8 @@ void main_task(void *pvParameters)
 
     case STATE_WAKE_UP:
       system_wake();
+
+      vTaskDelay(1000/portTICK_PERIOD_MS);
 
       net_cmd_queue(NET_CMD_CONNECT);
       net_cmd_queue_power_status(POWER_STATUS_WAKE);
