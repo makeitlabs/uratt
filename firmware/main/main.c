@@ -97,15 +97,15 @@ void app_main(void)
 
     ESP_LOGI(TAG, "creating tasks");
 
-    xTaskCreate(&system_task, "system_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&beep_task, "beep_task", 2560, NULL, 8, NULL);
-    xTaskCreate(&door_task, "door_task", 2048, NULL, 8, NULL);
-    xTaskCreate(&rfid_task, "rfid_task", 3072, NULL, 8, NULL);
+    xTaskCreate(&system_task, "system_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&beep_task, "beep_task", 2560, NULL, 0, NULL);
+    xTaskCreate(&door_task, "door_task", 2048, NULL, 1, NULL);
+    xTaskCreate(&rfid_task, "rfid_task", 3072, NULL, 1, NULL);
 #ifdef DISPLAY_ENABLED
-    xTaskCreate(&display_task, "display_task", 4096, NULL, 8, NULL);
+    xTaskCreate(&display_task, "display_task", 4096, NULL, 4, NULL);
 #endif
-    xTaskCreate(&net_task, "net_task", 4096, NULL, 7, NULL);
-    xTaskCreate(&main_task, "main_task", 2048, NULL, 7, NULL);
+    xTaskCreate(&net_task, "net_task", 4096, NULL, 2, NULL);
+    xTaskCreate(&main_task, "main_task", 2048, NULL, 3, NULL);
 
     ESP_LOGW(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
 

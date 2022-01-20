@@ -357,9 +357,10 @@ void main_task(void *pvParameters)
 
     case STATE_PRE_SLEEP1:
       if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
-        display_show_screen(SCREEN_SPLASH, LV_SCR_LOAD_ANIM_FADE_ON);
+        display_show_screen(SCREEN_BLANK, LV_SCR_LOAD_ANIM_FADE_ON);
         net_cmd_queue(NET_CMD_DISCONNECT);
-        xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        xTimerChangePeriod(timer, 1000 / portTICK_PERIOD_MS, 0);
         xTimerStart(timer, 0);
         system_pre_sleep();
         state = STATE_PRE_SLEEP2;
@@ -380,6 +381,7 @@ void main_task(void *pvParameters)
 
     case STATE_WAKE_UP:
       system_wake();
+      display_show_screen(SCREEN_SPLASH, LV_SCR_LOAD_ANIM_FADE_ON);
 
       vTaskDelay(1000/portTICK_PERIOD_MS);
 

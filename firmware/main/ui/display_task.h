@@ -53,6 +53,7 @@ BaseType_t display_wifi_rssi(int16_t rssi);
 BaseType_t display_allowed_msg(char *msg, uint8_t allowed);
 
 typedef enum {
+    SCREEN_BLANK,
     SCREEN_SPLASH,
     SCREEN_IDLE,
     SCREEN_ACCESS,

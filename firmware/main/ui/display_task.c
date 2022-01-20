@@ -49,6 +49,7 @@
 #include "lvgl.h"
 #include "main_task.h"
 #include "beep_task.h"
+#include "ui_blank.h"
 #include "ui_splash.h"
 #include "ui_idle.h"
 #include "ui_access.h"
@@ -249,6 +250,7 @@ void display_task(void *pvParameters)
 
     lv_obj_t *scr_splash = ui_splash_create();
 
+    lv_obj_t *scr_blank = ui_blank_create();
     lv_obj_t *scr_idle = ui_idle_create();
     lv_obj_t *scr_access = ui_access_create();
     lv_obj_t *scr_info = ui_info_create();
@@ -303,6 +305,12 @@ void display_task(void *pvParameters)
                 break;
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {
+                  case SCREEN_BLANK:
+                    if (s_scr != scr_blank) {
+                      lv_scr_load_anim(scr_blank, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_blank;
+                    }
+                    break;
                   case SCREEN_SPLASH:
                     if (s_scr != scr_splash) {
                       lv_scr_load_anim(scr_splash, evt.extparams.anim, 500, 0, false);

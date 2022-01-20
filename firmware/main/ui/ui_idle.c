@@ -17,6 +17,9 @@ LV_IMG_DECLARE(wifi_4);
 
 LV_IMG_DECLARE(rfid_tag);
 
+LV_FONT_DECLARE(sleep_28);
+#define SLEEP_SYMBOL "\xEF\x88\xB6"
+
 typedef struct {
     lv_obj_t *scr;
     int count_val;
@@ -90,9 +93,7 @@ static void anim_timer_cb(lv_timer_t *timer)
         lv_obj_set_style_opa(label_wifi_status, 255, 0);
     }
 
-    if (power_status == POWER_STATUS_SLEEP) {
-      lv_obj_set_style_opa(label_power_status, (count % 4) == 0 ? 255 : 64, 0);
-    } else if (power_status == POWER_STATUS_ON_BATT_LOW) {
+    if (power_status == POWER_STATUS_ON_BATT_LOW) {
       lv_obj_set_style_opa(label_power_status, (count < 7) ? 255 : 0, 0);
     } else {
       lv_obj_set_style_opa(label_power_status, 255, 0);
@@ -147,20 +148,24 @@ void ui_idle_set_power_status(power_status_t status)
   switch(status) {
       case POWER_STATUS_ON_EXT:
           color = lv_color_white();
+          lv_obj_set_style_text_font(label_power_status, &lv_font_montserrat_28, 0);
           lv_label_set_text(label_power_status, LV_SYMBOL_CHARGE);
           break;
       case POWER_STATUS_ON_BATT:
           color = lv_palette_main(LV_PALETTE_AMBER);
+          lv_obj_set_style_text_font(label_power_status, &lv_font_montserrat_28, 0);
           lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_FULL);
           break;
       case POWER_STATUS_ON_BATT_LOW:
           color = lv_palette_main(LV_PALETTE_RED);
+          lv_obj_set_style_text_font(label_power_status, &lv_font_montserrat_28, 0);
           lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_EMPTY);
           break;
       case POWER_STATUS_SLEEP:
       case POWER_STATUS_WAKE:
           color = lv_palette_main(LV_PALETTE_CYAN);
-          lv_label_set_text(label_power_status, LV_SYMBOL_POWER);
+          lv_obj_set_style_text_font(label_power_status, &sleep_28, 0);
+          lv_label_set_text(label_power_status, SLEEP_SYMBOL);
           break;
     }
     lv_obj_set_style_text_color(label_power_status, color, 0);
