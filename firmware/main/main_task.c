@@ -355,6 +355,7 @@ void main_task(void *pvParameters)
         net_cmd_queue(NET_CMD_DISCONNECT);
         xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
         xTimerStart(timer, 0);
+        system_pre_sleep();
         state = STATE_PRE_SLEEP2;
       }
       break;

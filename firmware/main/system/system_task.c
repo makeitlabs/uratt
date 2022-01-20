@@ -112,14 +112,19 @@ void sdelay(int ms)
     vTaskDelay(delay);
 }
 
+void system_pre_sleep()
+{
+  display_lvgl_disp_off(true);
+  vTaskDelay(500/portTICK_PERIOD_MS);
+}
+
 void system_sleep()
 {
   ESP_LOGI(TAG, "going to sleep");
   fflush(stdout);
-  vTaskDelay(1000/portTICK_PERIOD_MS);
+  vTaskDelay(500/portTICK_PERIOD_MS);
 
   gpio_set_level(GPIO_PIN_PWR_ENABLE, 0);
-  display_lvgl_disp_off(true);
 
   esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_ON);
   gpio_wakeup_enable(GPIO_PIN_FP_BUTTON, GPIO_INTR_LOW_LEVEL);
@@ -135,13 +140,13 @@ void system_sleep()
 
 void system_wake()
 {
-  ESP_LOGI(TAG, "waking up");
-
-  ESP_LOGI(TAG, "wake up reason %d", esp_sleep_get_wakeup_cause());
+  ESP_LOGI(TAG, "waking up, reason=%d", esp_sleep_get_wakeup_cause());
 
   gpio_set_level(GPIO_PIN_PWR_ENABLE, 1);
 
   display_lvgl_disp_off(false);
+
+  vTaskDelay(500/portTICK_PERIOD_MS);
 }
 
 void system_shutdown()

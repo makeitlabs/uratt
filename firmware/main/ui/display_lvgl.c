@@ -62,6 +62,7 @@ static const char *TAG = "display";
 #define LVGL_TICK_PERIOD_MS    10
 
 static esp_lcd_panel_handle_t s_panel_handle = NULL;
+esp_timer_handle_t s_lvgl_tick_timer = NULL;
 
 
 static bool notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
@@ -178,9 +179,8 @@ lv_obj_t *display_lvgl_init_scr(void)
         .callback = &increase_lvgl_tick,
         .name = "lvgl_tick"
     };
-    esp_timer_handle_t lvgl_tick_timer = NULL;
-    ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &lvgl_tick_timer));
-    ESP_ERROR_CHECK(esp_timer_start_periodic(lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000));
+    ESP_ERROR_CHECK(esp_timer_create(&lvgl_tick_timer_args, &s_lvgl_tick_timer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000));
 
     lv_obj_t *scr = lv_disp_get_scr_act(disp);
     ESP_LOGI(TAG, "LVGL screen created.");
@@ -194,4 +194,18 @@ void display_lvgl_disp_off(bool off)
 {
   gpio_set_level(GPIO_PIN_LCD_BCKL, off ? ~GPIO_LCD_BCKL_LEVEL_ON : GPIO_LCD_BCKL_LEVEL_ON);
   esp_lcd_panel_disp_off(s_panel_handle, off);
+
+  TaskHandle_t display_task = xTaskGetHandle("display_task");
+  if (display_task == NULL) {
+    ESP_LOGE(TAG, "Error getting display task handle, can't disable display.");
+    return;
+  }
+
+  if (off) {
+    ESP_ERROR_CHECK(esp_timer_stop(s_lvgl_tick_timer));
+    vTaskSuspend(display_task);
+  } else {
+    ESP_ERROR_CHECK(esp_timer_start_periodic(s_lvgl_tick_timer, LVGL_TICK_PERIOD_MS * 1000));
+    vTaskResume(display_task);
+  }
 }
