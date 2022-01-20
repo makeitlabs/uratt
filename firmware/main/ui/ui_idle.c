@@ -21,12 +21,14 @@ typedef struct {
     lv_obj_t *scr;
     int count_val;
     bool count_dir;
+    int count_sec;
     int mqtt_blink;
 } my_timer_context_t;
 
 static my_timer_context_t my_tim_ctx = {
     .count_val = 0,
     .count_dir = true,
+    .count_sec = 0,
     .mqtt_blink = 0
 };
 
@@ -55,6 +57,7 @@ static void anim_timer_cb(lv_timer_t *timer)
     my_timer_context_t *timer_ctx = (my_timer_context_t *) timer->user_data;
     int count = timer_ctx->count_val;
     bool count_dir = timer_ctx->count_dir;
+    int count_sec = timer_ctx->count_sec;
     int mqtt_blink = timer_ctx->mqtt_blink;
     //lv_obj_t *scr = timer_ctx->scr;
 
@@ -98,7 +101,24 @@ static void anim_timer_cb(lv_timer_t *timer)
     if (door_open) {
         lv_label_set_text(label_status, "OPEN");
     } else {
-        lv_label_set_text(label_status, time);
+        char time_copy[12];
+        strcpy(time_copy, time);
+
+        char color_time[60];
+
+        char *hr = time_copy;
+        char *min = strchr(time_copy, ':');
+        if (min) {
+          *min = '\0';
+          min++;
+
+          strcpy(color_time, hr);
+          strcat(color_time, (count_sec < 5) ? "#000000 :#" : ":");
+          strcat(color_time, min);
+          lv_label_set_recolor(label_status, true);
+          lv_label_set_text(label_status, color_time);
+        }
+
     }
 
     if (count_dir) {
@@ -111,8 +131,13 @@ static void anim_timer_cb(lv_timer_t *timer)
         count_dir = !count_dir;
     }
 
+    count_sec++;
+    if (count_sec >= 10)
+      count_sec = 0;
+
     timer_ctx->count_val = count;
     timer_ctx->count_dir = count_dir;
+    timer_ctx->count_sec = count_sec;
     timer_ctx->mqtt_blink = mqtt_blink;
 }
 
@@ -382,6 +407,7 @@ lv_obj_t* ui_idle_create(void)
     lv_obj_set_grid_cell(label_status, LV_GRID_ALIGN_CENTER, 0, 4, LV_GRID_ALIGN_CENTER, 0, 1);
     lv_label_set_long_mode(label_status, LV_LABEL_LONG_CLIP);
     lv_obj_set_style_text_font(label_status, &lv_font_montserrat_36, 0);
+    lv_label_set_recolor(label_status, true);
     lv_label_set_text_static(label_status, "12:00");
     lv_obj_set_style_text_color(label_status, lv_color_white(), 0);
     lv_obj_center(label_status);
