@@ -302,8 +302,10 @@ void display_task(void *pvParameters)
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {
                   case SCREEN_SPLASH:
-                    if (lv_scr_act() != scr_splash)
-                      lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
+                    if (lv_scr_act() != scr_splash) {
+                      lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_NONE, 50, 0, false);
+                      ui_splash_reset();
+                    }
                     break;
                   case SCREEN_IDLE:
                     if (lv_scr_act() != scr_idle)

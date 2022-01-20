@@ -15,14 +15,19 @@ typedef struct {
     int count_val;
 } my_timer_context_t;
 
+static my_timer_context_t s_tim_ctx = {
+    .count_val = 0,
+};
+
 
 static void anim_timer_cb(lv_timer_t *timer)
 {
     my_timer_context_t *timer_ctx = (my_timer_context_t *) timer->user_data;
     int count = timer_ctx->count_val;
 
-    if (++count == 15) {
+    if (++count == 10) {
       lv_img_set_src(img_logo, &ratt_logo);
+      lv_timer_pause(timer);
     }
 
     timer_ctx->count_val = count;
@@ -31,6 +36,13 @@ static void anim_timer_cb(lv_timer_t *timer)
 
 static lv_timer_t *timer;
 
+void ui_splash_reset()
+{
+  lv_timer_pause(timer);
+  s_tim_ctx.count_val = 0;
+  lv_img_set_src(img_logo, &makeit_logo);
+  lv_timer_resume(timer);
+}
 
 lv_obj_t* ui_splash_create(void)
 {
@@ -42,11 +54,8 @@ lv_obj_t* ui_splash_create(void)
   lv_obj_align(img_logo, LV_ALIGN_CENTER, 0, 0);
 
   // Create timer for animation
-  static my_timer_context_t my_tim_ctx = {
-      .count_val = 0,
-  };
-  my_tim_ctx.scr = scr;
-  timer = lv_timer_create(anim_timer_cb, 100, &my_tim_ctx);
+  s_tim_ctx.scr = scr;
+  timer = lv_timer_create(anim_timer_cb, 100, &s_tim_ctx);
 
   return scr;
 }

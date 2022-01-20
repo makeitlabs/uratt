@@ -357,6 +357,7 @@ void main_task(void *pvParameters)
 
     case STATE_PRE_SLEEP1:
       if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
+        display_show_screen(SCREEN_SPLASH);
         net_cmd_queue(NET_CMD_DISCONNECT);
         xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
         xTimerStart(timer, 0);
