@@ -208,7 +208,7 @@ void main_task(void *pvParameters)
 
     switch(state) {
     case STATE_INIT:
-      display_show_screen(SCREEN_SPLASH);
+      display_show_screen(SCREEN_SPLASH, LV_SCR_LOAD_ANIM_NONE);
       beep_queue(_beep_init);
 
       state = STATE_INITIAL_LOCK;
@@ -228,7 +228,7 @@ void main_task(void *pvParameters)
       break;
 
     case STATE_START_RFID_READ:
-      display_show_screen(SCREEN_IDLE);
+      display_show_screen(SCREEN_IDLE, LV_SCR_LOAD_ANIM_MOVE_RIGHT);
       state = STATE_WAIT_RFID;
       break;
 
@@ -251,12 +251,12 @@ void main_task(void *pvParameters)
           beep_queue(_beep_pre_scan);
           break;
         case MAIN_EVT_VALID_RFID_SCAN:
-          display_show_screen(SCREEN_ACCESS);
+          display_show_screen(SCREEN_ACCESS, LV_SCR_LOAD_ANIM_MOVE_LEFT);
           state = STATE_RFID_VALID;
           break;
         case MAIN_EVT_INVALID_RFID_SCAN:
           xTimerStop(timer, 0);
-          display_show_screen(SCREEN_ACCESS);
+          display_show_screen(SCREEN_ACCESS, LV_SCR_LOAD_ANIM_MOVE_LEFT);
           state = STATE_RFID_INVALID;
           break;
 
@@ -357,7 +357,7 @@ void main_task(void *pvParameters)
 
     case STATE_PRE_SLEEP1:
       if (evt.id == MAIN_EVT_TIMER_EXPIRED) {
-        display_show_screen(SCREEN_SPLASH);
+        display_show_screen(SCREEN_SPLASH, LV_SCR_LOAD_ANIM_FADE_ON);
         net_cmd_queue(NET_CMD_DISCONNECT);
         xTimerChangePeriod(timer, 2000 / portTICK_PERIOD_MS, 0);
         xTimerStart(timer, 0);
@@ -395,6 +395,7 @@ void main_task(void *pvParameters)
 
     case STATE_WAKING:
       if (net_connected) {
+        display_show_screen(SCREEN_IDLE, LV_SCR_LOAD_ANIM_FADE_ON);
         state = STATE_START_RFID_READ;
       }
       break;
@@ -403,13 +404,14 @@ void main_task(void *pvParameters)
       xTimerChangePeriod(timer, 10000 / portTICK_PERIOD_MS, 0);
       xTimerStart(timer, 0);
 
-      display_show_screen(SCREEN_INFO);
+      display_show_screen(SCREEN_INFO, LV_SCR_LOAD_ANIM_MOVE_TOP);
 
       state = STATE_SHOWING_INFO;
       break;
 
     case STATE_SHOWING_INFO:
       if (evt.id == MAIN_EVT_TIMER_EXPIRED || evt.id == MAIN_EVT_UI_BUTTON_PRESS) {
+        display_show_screen(SCREEN_IDLE, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
         state = STATE_START_RFID_READ;
       }
 

@@ -89,6 +89,7 @@ typedef struct display_evt {
     } params;
     union {
         int progress;
+        lv_scr_load_anim_t anim;
     } extparams;
 } display_evt_t;
 
@@ -206,11 +207,12 @@ BaseType_t display_door_state(bool door_open)
 #endif
 
 
-BaseType_t display_show_screen(screen_t screen)
+BaseType_t display_show_screen(screen_t screen, lv_scr_load_anim_t anim)
 #ifdef DISPLAY_ENABLED
 {
     display_evt_t evt;
     evt.params.screen = screen;
+    evt.extparams.anim = anim;
     evt.cmd = DISP_CMD_SHOW_SCREEN;
 
     return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
@@ -231,7 +233,7 @@ void display_init()
         ESP_LOGE(TAG, "FATAL: Cannot create display queue!");
     }
 
-    s_scr = display_lvgl_init_scr();
+    display_lvgl_init_scr();
 }
 #else
 { }
@@ -302,22 +304,29 @@ void display_task(void *pvParameters)
             case DISP_CMD_SHOW_SCREEN:
                 switch (evt.params.screen) {
                   case SCREEN_SPLASH:
-                    if (lv_scr_act() != scr_splash) {
-                      lv_scr_load_anim(scr_splash, LV_SCR_LOAD_ANIM_NONE, 50, 0, false);
+                    if (s_scr != scr_splash) {
+                      lv_scr_load_anim(scr_splash, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_splash;
                       ui_splash_reset();
                     }
                     break;
                   case SCREEN_IDLE:
-                    if (lv_scr_act() != scr_idle)
-                      lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 750, 0, false);
+                    if (s_scr != scr_idle) {
+                      lv_scr_load_anim(scr_idle, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_idle;
+                    }
                     break;
                   case SCREEN_ACCESS:
-                    if (lv_scr_act() != scr_access)
-                      lv_scr_load_anim(scr_access, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
+                    if (s_scr != scr_access) {
+                      lv_scr_load_anim(scr_access, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_access;
+                    }
                     break;
                   case SCREEN_INFO:
-                    if (lv_scr_act() != scr_info)
-                      lv_scr_load_anim(scr_info, LV_SCR_LOAD_ANIM_MOVE_LEFT, 750, 0, false);
+                    if (lv_scr_act() != scr_info) {
+                      lv_scr_load_anim(scr_info, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_info;
+                    }
                     break;
                 }
                 break;

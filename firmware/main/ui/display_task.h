@@ -43,6 +43,8 @@
 typedef int BaseType_t;
 #endif
 
+#include "lvgl.h"
+
 void display_task(void *pvParameters);
 void display_init();
 
@@ -57,7 +59,7 @@ typedef enum {
     SCREEN_INFO
 } screen_t;
 
-BaseType_t display_show_screen(screen_t screen);
+BaseType_t display_show_screen(screen_t screen, lv_scr_load_anim_t anim);
 
 typedef enum {
     POWER_STATUS_ON_EXT,
