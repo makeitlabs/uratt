@@ -43,6 +43,7 @@
 #include "driver/gpio.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_task_wdt.h"
 #include "system.h"
 #include "display_lvgl.h"
 #include "lvgl.h"
@@ -250,6 +251,8 @@ void display_task(void *pvParameters)
     lv_obj_t *scr_access = ui_access_create();
     lv_obj_t *scr_info = ui_info_create();
 
+    esp_task_wdt_add(NULL);
+
     while(1) {
         display_evt_t evt;
 
@@ -263,6 +266,8 @@ void display_task(void *pvParameters)
         }
 
         last_button = button;
+
+        esp_task_wdt_reset();
 
         display_lvgl_periodic();
 

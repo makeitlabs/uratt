@@ -41,7 +41,7 @@
 #include "freertos/queue.h"
 #include "esp_system.h"
 #include "esp_log.h"
-
+#include "esp_task_wdt.h"
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 #include "system.h"
@@ -123,8 +123,12 @@ void door_task(void *pvParameters)
     door_delay(2000);
     door_actuate_lock();
 
+    esp_task_wdt_add(NULL);
+
     while(1) {
         door_evt_t evt;
+
+        esp_task_wdt_reset();
 
         alarm = gpio_get_level(GPIO_PIN_ALARM_SCL);
 

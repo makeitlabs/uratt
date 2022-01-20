@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <esp_log.h>
 #include <esp_system.h>
-
+#include "esp_task_wdt.h"
 #include <driver/uart.h>
 #include <soc/uart_struct.h>
 #include <mbedtls/sha256.h>
@@ -212,7 +212,11 @@ void rfid_task(void *pvParameters)
 {
     uint8_t* rxbuf = (uint8_t*) malloc(SER_BUF_SIZE);
 
+    esp_task_wdt_add(NULL);
+
     while(1) {
+        esp_task_wdt_reset();
+        
         int len = uart_read_bytes(uart_num, rxbuf, SER_BUF_SIZE, 20 / portTICK_RATE_MS);
 
         if (len==10) {

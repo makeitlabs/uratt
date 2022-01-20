@@ -45,6 +45,7 @@
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
 #include "system.h"
+#include "esp_task_wdt.h"
 
 #include "system_task.h"
 #include "beep_task.h"
@@ -148,10 +149,14 @@ void main_task(void *pvParameters)
   bool net_connected = false;
   bool door_open = false;
 
+  esp_task_wdt_add(NULL);
+
   ESP_LOGI(TAG, "task start, TICK_RATE_HZ=%u", configTICK_RATE_HZ);
   while(1) {
     main_evt_t evt;
     evt.id = MAIN_EVT_NONE;
+
+    esp_task_wdt_reset();
 
     if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdTRUE) {
       // handle some events immediately, regardless of system state

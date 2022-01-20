@@ -39,6 +39,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_task_wdt.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "system.h"
@@ -109,7 +110,7 @@ void bdelay(int ms)
 
 void beep_init(void)
 {
-  esp_log_level_set("ledc", ESP_LOG_DEBUG);
+  esp_log_level_set("ledc", ESP_LOG_NONE);
 
   m_q = xQueueCreate(BEEP_QUEUE_DEPTH, sizeof(beep_evt_t));
   if (m_q == NULL) {
@@ -161,8 +162,12 @@ void beep_delay(int ms)
 
 void beep_task(void *pvParameters)
 {
+    esp_task_wdt_add(NULL);
+
     while(1) {
         beep_evt_t evt;
+
+        esp_task_wdt_reset();
 
         if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
             int bidx = 0;

@@ -40,6 +40,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_task_wdt.h"
 #include "driver/gpio.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
@@ -164,8 +165,12 @@ void system_task(void *pvParameters)
 
   time_t last_pwr_loss_change_time = 0;
 
+  esp_task_wdt_add(NULL);
+
   while(1) {
     system_evt_t evt;
+
+    esp_task_wdt_reset();
 
     if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
       ESP_LOGI(TAG, "system task cmd=%d\n", evt.cmd);

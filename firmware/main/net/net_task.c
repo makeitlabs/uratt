@@ -47,6 +47,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_netif.h"
+#include "esp_task_wdt.h"
 #include "config.h"
 #include "https.h"
 
@@ -445,8 +446,12 @@ void net_task(void *pvParameters)
     ESP_LOGI(TAG, "start net task");
     net_init();
 
+    esp_task_wdt_add(NULL);
+
     while(1) {
       net_evt_t evt;
+
+      esp_task_wdt_reset();
 
       if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdPASS) {
         switch(evt.cmd) {
