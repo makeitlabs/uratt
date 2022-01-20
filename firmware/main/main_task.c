@@ -145,6 +145,7 @@ void main_task(void *pvParameters)
 
   TimerHandle_t timer = xTimerCreate("smtimer", 1000, pdFALSE, (void*)0,  main_task_timer_cb);
 
+  bool low_batt = false;
   bool power_ok = true;
   bool net_connected = false;
   bool door_open = false;
@@ -161,10 +162,29 @@ void main_task(void *pvParameters)
     if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdTRUE) {
       // handle some events immediately, regardless of system state
       switch(evt.id) {
+        case MAIN_EVT_BATTERY_LOW:
+          low_batt = true;
+          if (!power_ok) {
+            display_power_status(POWER_STATUS_ON_BATT_LOW);
+            net_cmd_queue_power_status(POWER_STATUS_ON_BATT_LOW);
+          }
+          break;
+        case MAIN_EVT_BATTERY_OK:
+          low_batt = false;
+          if (!power_ok) {
+            display_power_status(POWER_STATUS_ON_BATT);
+            net_cmd_queue_power_status(POWER_STATUS_ON_BATT);
+          }
+          break;
         case MAIN_EVT_POWER_LOSS:
           ESP_LOGE(TAG, "MAIN_EVT_POWER_LOSS");
-          display_power_status(POWER_STATUS_ON_BATT);
-          net_cmd_queue_power_status(POWER_STATUS_ON_BATT);
+          if (low_batt) {
+            display_power_status(POWER_STATUS_ON_BATT_LOW);
+            net_cmd_queue_power_status(POWER_STATUS_ON_BATT_LOW);
+          } else {
+            display_power_status(POWER_STATUS_ON_BATT);
+            net_cmd_queue_power_status(POWER_STATUS_ON_BATT);
+          }
           power_ok = false;
           break;
         case MAIN_EVT_POWER_RESTORED:

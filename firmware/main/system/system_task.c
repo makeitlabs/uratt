@@ -164,6 +164,7 @@ void system_task(void *pvParameters)
   uint last_low_batt = 1;
 
   time_t last_pwr_loss_change_time = 0;
+  time_t last_low_batt_change_time = 0;
 
   esp_task_wdt_add(NULL);
 
@@ -181,8 +182,8 @@ void system_task(void *pvParameters)
       time_t now;
       time(&now);
 
-      if (now - last_pwr_loss_change_time >= 1) {
-        // only allow power state to change every 1 second, essentially a debounce
+      if (now - last_pwr_loss_change_time >= 2) {
+        // only allow power state to change every 2 seconds, essentially a debounce
         if (pwr_loss == 0) {
           main_task_event(MAIN_EVT_POWER_LOSS);
           ESP_LOGW(TAG, "power lost!");
@@ -198,13 +199,21 @@ void system_task(void *pvParameters)
 
     uint low_batt = gpio_get_level(GPIO_PIN_LOW_BAT);
     if (low_batt != last_low_batt) {
-      if (low_batt == 0) {
-        ESP_LOGW(TAG, "low battery detected!");
-      } else {
-        ESP_LOGI(TAG, "battery voltage OK!");
+      time_t now;
+      time(&now);
+      if (now - last_low_batt_change_time >= 2) {
+        if (low_batt == 0) {
+          main_task_event(MAIN_EVT_BATTERY_LOW);
+          ESP_LOGW(TAG, "low battery detected!");
+        } else {
+          main_task_event(MAIN_EVT_BATTERY_OK);
+          ESP_LOGI(TAG, "battery voltage OK!");
+        }
+        last_low_batt = low_batt;
       }
+    } else {
+      time(&last_low_batt_change_time);
     }
-    last_low_batt = low_batt;
-  }
 
+  }
 }

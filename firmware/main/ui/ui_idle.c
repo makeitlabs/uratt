@@ -152,14 +152,14 @@ void ui_idle_set_power_status(power_status_t status)
           lv_label_set_text(label_power_status, LV_SYMBOL_CHARGE);
           break;
       case POWER_STATUS_ON_BATT:
-          color = lv_palette_main(LV_PALETTE_AMBER);
+          color = lv_color_white();
           lv_obj_set_style_text_font(label_power_status, &lv_font_montserrat_28, 0);
           lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_FULL);
           break;
       case POWER_STATUS_ON_BATT_LOW:
           color = lv_palette_main(LV_PALETTE_RED);
           lv_obj_set_style_text_font(label_power_status, &lv_font_montserrat_28, 0);
-          lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_EMPTY);
+          lv_label_set_text(label_power_status, LV_SYMBOL_BATTERY_1);
           break;
       case POWER_STATUS_SLEEP:
       case POWER_STATUS_WAKE:
