@@ -67,7 +67,7 @@
 #include "esp_ota_ops.h"
 
 #include "mqtt_client.h"
-
+#include "main_task.h"
 #include "rfid_task.h"
 #include "net_task.h"
 #include "net_mqtt.h"
@@ -331,6 +331,7 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Connected to MQTT broker");
             msg_id = esp_mqtt_client_subscribe(client, "ratt/control/broadcast/acl/update", 0);
+            msg_id = esp_mqtt_client_subscribe(client, "ratt/control/broadcast/firmware/update", 0);
             ESP_LOGD(TAG, "sent subscribe successful, msg_id=%d", msg_id);
             display_mqtt_status(MQTT_STATUS_CONNECTED);
             s_mqtt_connected = true;
@@ -359,11 +360,14 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
             ESP_LOGD(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
             ESP_LOGD(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
 
-            // NOTE: we only subscribe to one thing, so no parsing needed (yet)
-            net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+            // note using strncmp on non-null-terminated char arrays here...
+            if (strncmp(event->topic, "ratt/control/broadcast/acl/update", event->topic_len) == 0) {
+              net_cmd_queue(NET_CMD_DOWNLOAD_ACL);
+            } else if (strncmp(event->topic, "ratt/control/broadcast/firmware/update", event->topic_len) == 0) {
+              main_task_event(MAIN_EVT_OTA_UPDATE);
+            }
 
             display_mqtt_status(MQTT_STATUS_DATA_RECEIVED);
-
             break;
         case MQTT_EVENT_ERROR:
             ESP_LOGE(TAG, "MQTT_EVENT_ERROR");
