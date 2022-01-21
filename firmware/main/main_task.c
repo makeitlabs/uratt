@@ -76,7 +76,8 @@ typedef enum {
   STATE_WAKE_UP,
   STATE_WAKING,
   STATE_SHOW_INFO,
-  STATE_SHOWING_INFO
+  STATE_SHOWING_INFO,
+  STATE_OTA_UPDATE,
 } main_state_t;
 
 static const char* state_names[] =
@@ -99,6 +100,7 @@ static const char* state_names[] =
     "STATE_WAKING",
     "STATE_SHOW_INFO",
     "STATE_SHOWING_INFO",
+    "STATE_OTA_UPDATE",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
     "!!!UPDATE_STATE_NAMES_TABLE!!!",
@@ -149,6 +151,7 @@ void main_task(void *pvParameters)
   bool power_ok = true;
   bool net_connected = false;
   bool door_open = false;
+  bool pending_ota_update = false;
 
   esp_task_wdt_add(NULL);
 
@@ -162,6 +165,9 @@ void main_task(void *pvParameters)
     if (xQueueReceive(m_q, &evt, (20 / portTICK_PERIOD_MS)) == pdTRUE) {
       // handle some events immediately, regardless of system state
       switch(evt.id) {
+        case MAIN_EVT_OTA_UPDATE:
+          pending_ota_update = true;
+          break;
         case MAIN_EVT_BATTERY_LOW:
           low_batt = true;
           if (!power_ok) {
@@ -257,6 +263,13 @@ void main_task(void *pvParameters)
         if (xTimerIsTimerActive(timer)) {
           ESP_LOGW(TAG, "main power now ok");
           xTimerStop(timer, 0);
+        }
+
+        if (pending_ota_update) {
+          pending_ota_update = false;
+          net_cmd_queue(NET_CMD_OTA_UPDATE);
+          display_show_screen(SCREEN_OTA, LV_SCR_LOAD_ANIM_MOVE_TOP);
+          state = STATE_OTA_UPDATE;
         }
       } else {
         if (!xTimerIsTimerActive(timer)) {
@@ -435,6 +448,26 @@ void main_task(void *pvParameters)
       if (evt.id == MAIN_EVT_TIMER_EXPIRED || evt.id == MAIN_EVT_UI_BUTTON_PRESS) {
         display_show_screen(SCREEN_IDLE, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
         state = STATE_START_RFID_READ;
+      }
+
+      break;
+
+    case STATE_OTA_UPDATE:
+      if (evt.id == MAIN_EVT_OTA_UPDATE_FAILED) {
+        display_show_screen(SCREEN_IDLE, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
+        state = STATE_START_RFID_READ;
+      } else if (evt.id == MAIN_EVT_OTA_UPDATE_SUCCESS) {
+        display_show_screen(SCREEN_BLANK, LV_SCR_LOAD_ANIM_FADE_ON);
+        net_cmd_queue(NET_CMD_DISCONNECT);
+
+        ESP_LOGW(TAG, "Rebooting to apply firmware update");
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+
+        esp_restart();
+
+        while (1) {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
       }
 
       break;
