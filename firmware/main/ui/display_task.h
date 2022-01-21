@@ -68,6 +68,7 @@ typedef enum {
     OTA_STATUS_INIT,
     OTA_STATUS_ERROR,
     OTA_STATUS_DOWNLOADING,
+    OTA_STATUS_APPLYING,
     OTA_STATUS_MAX
 } ota_status_t;
 

@@ -322,6 +322,49 @@ void net_mqtt_send_door_state(bool door_open)
   free(payload);
 }
 
+
+
+void net_mqtt_send_ota_status(ota_status_t status, int progress)
+{
+  char *topic, *payload;
+  char st[20];
+  topic = malloc(128);
+  payload = malloc(128);
+
+  net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "system/ota_status", topic, 128);
+
+  switch (status) {
+    case OTA_STATUS_INIT:
+      strncpy(st, "init", sizeof(st));
+      break;
+    case OTA_STATUS_ERROR:
+      strncpy(st, "error", sizeof(st));
+      break;
+    case OTA_STATUS_DOWNLOADING:
+      strncpy(st, "downloading", sizeof(st));
+      break;
+    case OTA_STATUS_APPLYING:
+      strncpy(st, "applying", sizeof(st));
+      break;
+    default:
+      strncpy(st, "unknown", sizeof(st));
+      break;
+  }
+
+  snprintf(payload, 128, "{\"status\": \"%s\", \"progress\": \"%d\"}", st, progress);
+
+  if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
+    display_mqtt_status(MQTT_STATUS_DATA_SENT);
+    ESP_LOGD(TAG, "published system ota status");
+  } else {
+    ESP_LOGE(TAG, "error publishing to topic '%s'", topic);
+  }
+
+  free(topic);
+  free(payload);
+}
+
+
 static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
     esp_mqtt_client_handle_t client = event->client;

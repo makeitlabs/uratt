@@ -10,6 +10,7 @@
 #include "string.h"
 #include "net_ota.h"
 #include "net_certs.h"
+#include "net_mqtt.h"
 #include "esp_wifi.h"
 #include "config.h"
 #include "main_task.h"
@@ -30,6 +31,7 @@ void net_ota_progress(size_t received, size_t total)
 
   if (percent != last_percent) {
     display_ota_status(OTA_STATUS_DOWNLOADING, percent);
+    net_mqtt_send_ota_status(OTA_STATUS_DOWNLOADING, percent);
   }
 
   last_percent = percent;
@@ -92,7 +94,9 @@ void net_ota_update(void)
 
     ESP_LOGI(TAG, "Starting OTA update from %s", conf_ota_url);
 
+
     display_ota_status(OTA_STATUS_DOWNLOADING, 0);
+    net_mqtt_send_ota_status(OTA_STATUS_DOWNLOADING, 0);
 
     esp_err_t ret = esp_https_ota(&config);
 
@@ -100,9 +104,12 @@ void net_ota_update(void)
 
     if (ret == ESP_OK) {
         ESP_LOGW(TAG, "OTA firmware download success");
+        net_mqtt_send_ota_status(OTA_STATUS_APPLYING, 100);
+        vTaskDelay(500/portTICK_PERIOD_MS);
         main_task_event(MAIN_EVT_OTA_UPDATE_SUCCESS);
     } else {
         ESP_LOGE(TAG, "OTA firmware upgrade failed ret=%d", ret);
+        net_mqtt_send_ota_status(OTA_STATUS_ERROR, 0);
         display_ota_status(OTA_STATUS_ERROR, 100);
         main_task_event(MAIN_EVT_OTA_UPDATE_FAILED);
     }
