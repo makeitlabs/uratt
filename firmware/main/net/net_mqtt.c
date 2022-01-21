@@ -64,6 +64,7 @@
 #include "mbedtls/error.h"
 #include "mbedtls/certs.h"
 #include "mbedtls/base64.h"
+#include "esp_ota_ops.h"
 
 #include "mqtt_client.h"
 
@@ -168,7 +169,7 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 {
   char *topic, *payload;
   topic = malloc(128);
-  payload = malloc(128);
+  payload = malloc(512);
 
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
@@ -187,46 +188,60 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 void net_mqtt_send_boot_status(void)
 {
   char *topic, *payload;
+  char reason[20];
+  char fw_sha[65];
   topic = malloc(128);
-  payload = malloc(128);
+  payload = malloc(256);
 
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "system/boot", topic, 128);
 
-  esp_reset_reason_t reason = esp_reset_reason();
+  esp_reset_reason_t reset_reason = esp_reset_reason();
 
-  switch (reason) {
+  switch (reset_reason) {
     case ESP_RST_POWERON:
-      snprintf(payload, 128, "{\"reset_reason\": \"power_on\"}");
+      strncpy(reason, "power_on", sizeof(reason));
       break;
     case ESP_RST_EXT:
-      snprintf(payload, 128, "{\"reset_reason\": \"ext\"}");
+      strncpy(reason, "ext", sizeof(reason));
       break;
     case ESP_RST_SW:
-      snprintf(payload, 128, "{\"reset_reason\": \"sw\"}");
+      strncpy(reason, "sw", sizeof(reason));
       break;
     case ESP_RST_PANIC:
-      snprintf(payload, 128, "{\"reset_reason\": \"panic\"}");
+      strncpy(reason, "panic", sizeof(reason));
       break;
     case ESP_RST_INT_WDT:
-      snprintf(payload, 128, "{\"reset_reason\": \"int_wdt\"}");
+      strncpy(reason, "int_wdt", sizeof(reason));
       break;
     case ESP_RST_TASK_WDT:
-      snprintf(payload, 128, "{\"reset_reason\": \"task_wdt\"}");
+      strncpy(reason, "task_wdt", sizeof(reason));
       break;
     case ESP_RST_DEEPSLEEP:
-      snprintf(payload, 128, "{\"reset_reason\": \"deep_sleep\"}");
+      strncpy(reason, "deep_sleep", sizeof(reason));
       break;
     case ESP_RST_BROWNOUT:
-      snprintf(payload, 128, "{\"reset_reason\": \"brownout\"}");
+      strncpy(reason, "brownout", sizeof(reason));
       break;
     case ESP_RST_SDIO:
-      snprintf(payload, 128, "{\"reset_reason\": \"sdio\"}");
+      strncpy(reason, "sdio", sizeof(reason));
       break;
     case ESP_RST_UNKNOWN:
     default:
-      snprintf(payload, 128, "{\"reset_reason\": \"unknown\"}");
+      strncpy(reason, "unknown", sizeof(reason));
       break;
   }
+
+  const esp_app_desc_t* desc = esp_ota_get_app_description();
+
+  strcpy(fw_sha, "");
+  for (int i=0; i<32; i++) {
+    char s[3];
+    snprintf(s, 3, "%02x", desc->app_elf_sha256[i]);
+    strcat(fw_sha, s);
+  }
+
+  snprintf(payload, 512, "{\"reset_reason\": \"%s\", \"fw_name\": \"%s\", \"fw_version\": \"%s\", \"fw_date\": \"%s\", \"fw_time\": \"%s\", \"fw_sha256\": \"%s\", \"idf_ver\": \"%s\"}",
+           reason, desc->project_name, desc->version, desc->date, desc->time, fw_sha, desc->idf_ver);
 
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
     display_mqtt_status(MQTT_STATUS_DATA_SENT);
@@ -330,8 +345,6 @@ static esp_err_t net_mqtt_event_handler(esp_mqtt_event_handle_t event)
 
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGD(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-            //msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-            //ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
             ESP_LOGD(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
