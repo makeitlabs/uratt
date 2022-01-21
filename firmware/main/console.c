@@ -51,6 +51,7 @@
 #include "argtable3/argtable3.h"
 #include "console.h"
 
+#include "main_task.h"
 #include "net_task.h"
 
 
@@ -65,6 +66,7 @@ static void console_register_cmd_dir(void);
 static void console_register_cmd_acl(void);
 static void console_register_cmd_free(void);
 static void console_register_cmd_reset(void);
+static void console_register_cmd_ota(void);
 
 
 void console_init(void)
@@ -138,6 +140,7 @@ void console_init(void)
     console_register_cmd_acl();
     console_register_cmd_free();
     console_register_cmd_reset();
+    console_register_cmd_ota();
 
 
     printf("\n\n"
@@ -424,6 +427,14 @@ static int system_reset(int argc, char **argv)
   return ESP_OK;
 }
 
+static int ota_update(int argc, char **argv)
+{
+  printf("\n\nRequesting OTA update.\n");
+  main_task_event(MAIN_EVT_OTA_UPDATE);
+  return ESP_OK;
+}
+
+
 static void console_register_cmd_log(void)
 {
     log_args.tag = arg_str1(NULL, NULL, "<tag>", "TAG of module to change, * to reset all to a given level");
@@ -578,6 +589,21 @@ static void console_register_cmd_reset(void)
   };
 
   ESP_ERROR_CHECK( esp_console_cmd_register(&reset_cmd) );
+}
+
+
+static void console_register_cmd_ota(void)
+{
+
+  const esp_console_cmd_t ota_cmd = {
+      .command = "ota",
+      .help = "Perform OTA update",
+      .hint = NULL,
+      .func = &ota_update,
+      .argtable = NULL
+  };
+
+  ESP_ERROR_CHECK( esp_console_cmd_register(&ota_cmd) );
 }
 
 
