@@ -54,6 +54,7 @@
 #include "ui_idle.h"
 #include "ui_access.h"
 #include "ui_info.h"
+#include "ui_ota.h"
 
 #ifdef DISPLAY_ENABLED
 static const char *TAG = "display_task";
@@ -62,7 +63,8 @@ static const char *TAG = "display_task";
 #define DISPLAY_EVT_BUF_SIZE 32
 
 typedef enum {
-    DISP_CMD_WIFI_STATUS = 0x00,
+    DISP_CMD_OTA_STATUS,
+    DISP_CMD_WIFI_STATUS,
     DISP_CMD_WIFI_RSSI,
     DISP_CMD_NET_STATUS,
     DISP_CMD_ACL_STATUS,
@@ -78,6 +80,7 @@ typedef struct display_evt {
     char buf[DISPLAY_EVT_BUF_SIZE];
     union {
         screen_t screen;
+        ota_status_t ota_status;
         power_status_t power_status;
         acl_status_t acl_status;
         mqtt_status_t mqtt_status;
@@ -99,6 +102,19 @@ static lv_obj_t *s_scr = NULL;
 static QueueHandle_t m_q;
 #endif
 
+
+BaseType_t display_ota_status(ota_status_t status, int progress)
+#ifdef DISPLAY_ENABLED
+{
+    display_evt_t evt;
+    evt.cmd = DISP_CMD_OTA_STATUS;
+    evt.params.ota_status = status;
+    evt.extparams.progress = progress;
+    return xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS);
+}
+#else
+{ return -1; }
+#endif
 
 BaseType_t display_wifi_status(wifi_status_t status)
 #ifdef DISPLAY_ENABLED
@@ -254,6 +270,7 @@ void display_task(void *pvParameters)
     lv_obj_t *scr_idle = ui_idle_create();
     lv_obj_t *scr_access = ui_access_create();
     lv_obj_t *scr_info = ui_info_create();
+    lv_obj_t *scr_ota = ui_ota_create();
 
     esp_task_wdt_add(NULL);
 
@@ -277,6 +294,11 @@ void display_task(void *pvParameters)
 
         if (xQueueReceive(m_q, &evt, (10 / portTICK_PERIOD_MS)) == pdPASS) {
             switch(evt.cmd) {
+            case DISP_CMD_OTA_STATUS:
+                ui_ota_set_status(evt.params.ota_status);
+                if (evt.params.ota_status == OTA_STATUS_DOWNLOADING)
+                  ui_ota_set_download_progress(evt.extparams.progress);
+                break;
             case DISP_CMD_WIFI_STATUS:
                 ui_idle_set_wifi_status(evt.params.wifi_status);
                 break;
@@ -331,9 +353,15 @@ void display_task(void *pvParameters)
                     }
                     break;
                   case SCREEN_INFO:
-                    if (lv_scr_act() != scr_info) {
+                    if (s_scr != scr_info) {
                       lv_scr_load_anim(scr_info, evt.extparams.anim, 500, 0, false);
                       s_scr = scr_info;
+                    }
+                    break;
+                  case SCREEN_OTA:
+                    if (s_scr != scr_ota) {
+                      lv_scr_load_anim(scr_ota, evt.extparams.anim, 500, 0, false);
+                      s_scr = scr_ota;
                     }
                     break;
                 }

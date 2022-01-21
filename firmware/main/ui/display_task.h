@@ -57,10 +57,22 @@ typedef enum {
     SCREEN_SPLASH,
     SCREEN_IDLE,
     SCREEN_ACCESS,
-    SCREEN_INFO
+    SCREEN_INFO,
+    SCREEN_OTA
 } screen_t;
 
 BaseType_t display_show_screen(screen_t screen, lv_scr_load_anim_t anim);
+
+
+typedef enum {
+    OTA_STATUS_INIT,
+    OTA_STATUS_ERROR,
+    OTA_STATUS_DOWNLOADING,
+    OTA_STATUS_MAX
+} ota_status_t;
+
+BaseType_t display_ota_status(ota_status_t status, int progress);
+
 
 typedef enum {
     POWER_STATUS_ON_EXT,
