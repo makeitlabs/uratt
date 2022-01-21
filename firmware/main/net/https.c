@@ -12,6 +12,7 @@
 
 #include "https.h"
 
+#include "esp_task_wdt.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "esp_log.h"
@@ -36,6 +37,8 @@ static esp_err_t http_get_file_event_handler(esp_http_client_event_t *evt)
 {
     static size_t content_length = 0;
     static size_t received_length = 0;
+
+    esp_task_wdt_reset();
 
     switch(evt->event_id) {
         case HTTP_EVENT_ERROR:
