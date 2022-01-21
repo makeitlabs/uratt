@@ -45,7 +45,6 @@ static const char *TAG = "spiflash";
 
 // Handles of the wear levelling library instance
 static wl_handle_t s_config_wl_handle = WL_INVALID_HANDLE;
-static wl_handle_t s_work_wl_handle = WL_INVALID_HANDLE;
 
 // Mount paths for the partitions
 const char *config_path = "/config";
