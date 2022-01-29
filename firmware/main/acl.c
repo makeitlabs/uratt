@@ -79,7 +79,7 @@ esp_err_t acl_get_data_filename(char **s)
 
 esp_err_t acl_get_hash_filename(char **s)
 {
-  return config_get_string("acl_hash_file", s, "/config/acl.csv");
+  return config_get_string("acl_hash_file", s, "/config/acl.sha");
 }
 
 // Load the stored ACL hash from a file
