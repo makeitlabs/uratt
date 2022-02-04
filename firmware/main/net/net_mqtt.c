@@ -173,7 +173,8 @@ void net_mqtt_send_access_error(char *err_text, char *err_ext)
 
   net_mqtt_topic_targeted(MQTT_TOPIC_TYPE_STATUS, "personality/access", topic, 128);
 
-  snprintf(payload, 128, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
+  snprintf(payload, 512, "{\"error\": true, \"errorText\": \"%s\", \"errorExt\": \"%s\"}", err_text, err_ext);
+
   if (esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 2, 0) != -1) {
     display_mqtt_status(MQTT_STATUS_DATA_SENT);
     ESP_LOGD(TAG, "published personality access error");

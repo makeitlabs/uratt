@@ -380,11 +380,13 @@ esp_err_t net_cmd_queue_access_error(char *err, char *err_ext)
     evt.params.buf2 = malloc(strlen(err_ext) + 1);
     if (evt.buf1 && evt.params.buf2) {
       strncpy(evt.buf1, err, strlen(err) + 1);
-      strncpy(evt.params.buf2, err, strlen(err_ext) + 1);
+      strncpy(evt.params.buf2, err_ext, strlen(err_ext) + 1);
       return (xQueueSendToBack(m_q, &evt, 250 / portTICK_PERIOD_MS) == pdTRUE) ? ESP_OK : ESP_FAIL;
     }
-    free(evt.buf1);
-    free(evt.params.buf2);
+    if (!evt.buf1)
+      free(evt.buf1);
+    if (!evt.params.buf2)
+      free(evt.params.buf2);
     return ESP_ERR_NO_MEM;
 }
 
