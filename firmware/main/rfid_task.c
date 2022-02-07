@@ -216,7 +216,7 @@ void rfid_task(void *pvParameters)
 
     while(1) {
         esp_task_wdt_reset();
-        
+
         int len = uart_read_bytes(uart_num, rxbuf, SER_BUF_SIZE, 20 / portTICK_RATE_MS);
 
         if (len==10) {
@@ -231,19 +231,22 @@ void rfid_task(void *pvParameters)
                 snprintf(s, sizeof(s), "%10.10u %2.2X %2.2X %2.2X %2.2X [%2.2X == %2.2X]", tag, rxbuf[4], rxbuf[5], rxbuf[6], rxbuf[7], rxbuf[8], checksum_calc);
                 ESP_LOGD(TAG, "%s", s);
 
-                main_task_event(MAIN_EVT_RFID_PRE_SCAN);
+                if (tag != 0) {
+                  main_task_event(MAIN_EVT_RFID_PRE_SCAN);
 
-                xSemaphoreTake(m_member_record_mutex, portMAX_DELAY);
-                bzero(&m_member_record, sizeof(m_member_record));
-                uint8_t found = rfid_lookup(tag, &m_member_record);
-                m_member_record.tag = tag;
-                xSemaphoreGive(m_member_record_mutex);
+                  xSemaphoreTake(m_member_record_mutex, portMAX_DELAY);
+                  bzero(&m_member_record, sizeof(m_member_record));
+                  uint8_t found = rfid_lookup(tag, &m_member_record);
+                  m_member_record.tag = tag;
+                  xSemaphoreGive(m_member_record_mutex);
 
-                if (found)
-                  main_task_event(MAIN_EVT_VALID_RFID_SCAN);
-                else
-                  main_task_event(MAIN_EVT_INVALID_RFID_SCAN);
-
+                  if (found)
+                    main_task_event(MAIN_EVT_VALID_RFID_SCAN);
+                  else
+                    main_task_event(MAIN_EVT_INVALID_RFID_SCAN);
+                } else {
+                  ESP_LOGW(TAG, "Bad RFID tag value 0, ignoring.  May indicate bad RFID module?");
+                }
             } else {
                 char s[80];
                 ESP_LOGW(TAG, "Bad RFID tag checksum, bytes follow:");
